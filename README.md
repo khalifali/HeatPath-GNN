@@ -1,5 +1,22 @@
 # HeatPath-GNN
 
+## Corrected 30-packing campaign
+
+Start with [the server instructions](docs/campaign30.md). The new workflow
+regenerates 30 packings with corrected DEM parameters and thermal conductance,
+then produces allocation searches, held-out MLP/GNN results, mechanism analysis,
+a PDF report and six publication figures.
+
+```bash
+bash code_work/Allrun30 --check --lammps lmp --mpi-ranks 8
+bash code_work/Allrun30 --lammps lmp --mpi-ranks 8
+```
+
+New results go to `runs/campaign30/`. Repeating the command resumes verified
+completed stages. Existing ten-packing data and manuscript values below are
+**historical** and must not be mixed with the corrected campaign.
+
+
 Physics-guided allocation of conductive particles in fixed DEM packings, with
 a steady thermal network and MLP/GNN allocation models.
 
@@ -39,3 +56,4 @@ the final learned-model results are in `gnn_loocv_results_rank_ensemble/`.
 Final data and scientific reference results are deliberately tracked.
 Intermediate growth snapshots, Python caches and LaTeX compilation auxiliaries
 are ignored. Git history preserves files removed during cleanup.
+

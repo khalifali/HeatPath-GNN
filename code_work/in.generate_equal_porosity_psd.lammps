@@ -126,12 +126,12 @@ variable restitution     equal 0.30
 variable friction        equal 0.50
 
 pair_style granular
-pair_coeff * * hertz/material ${young} ${poisson} ${restitution} &
+pair_coeff * * hertz/material ${young} ${restitution} ${poisson} &
                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
 
 # Same mechanical law at the cold/hot z boundaries.  Thermal boundary
 # conditions are not activated in this packing-only script.
-fix zwalls all wall/gran granular hertz/material ${young} ${poisson} ${restitution} &
+fix zwalls all wall/gran granular hertz/material ${young} ${restitution} ${poisson} &
                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji &
                zplane 0.0 ${H}
 
@@ -189,6 +189,7 @@ fix dampingFinal all viscous 0.10
 # Remove any accumulated center-of-mass drift and relax at final size.
 velocity all zero linear
 velocity all zero angular
+undump growth
 reset_timestep 0
 
 variable nRelax          index 200000
@@ -197,11 +198,10 @@ run ${nRelax}
 # ------------------------------------------------------------
 # 5) Final diagnostics and graph-ready output
 # ------------------------------------------------------------
-undump growth
-
 # Particle table: the graph nodes.
 write_dump all custom ${outdir}/particles_final.dump &
-     id type x y z radius mass fx fy fz modify sort id
+     id type x y z radius mass fx fy fz modify sort id format line &
+     "%d %d %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g"
 
 # Interacting pairs: the graph edges.  Values returned by computes are
 # stored as floating point, including atom IDs and types; %.0f is therefore
@@ -220,8 +220,8 @@ dump_modify contacts format line &
      "%d %.0f %.0f %.0f %.0f %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e"
 dump_modify contacts first yes
 
-# One step initializes and writes the local contact dump.
-run 1
+# Initialize and write contacts without moving particles: same snapshot as nodes.
+run 0
 undump contacts
 
 write_data    ${outdir}/packing_final.data
@@ -242,3 +242,4 @@ print "${seed_realization} ${finalN1} ${finalN2} ${finalN3} ${d1} ${d2} ${d3} ${
 
 print "Packing generation completed: ${outdir}"
 print "For another equal-PSD/equal-porosity realization, change only seed_realization."
+

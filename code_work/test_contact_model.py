@@ -2,7 +2,7 @@
 """Independent contact-model audit.
 
 Run: python3 test_contact_model.py
-Known discrepancies are ordinary failures, not hidden by expectedFailure.
+Regression checks for the corrected contact model and DEM argument order.
 Reference: LAMMPS stable_22Jul2025_update5, pair_granular.rst.
 For a circular isothermal contact, each half-space contributes 1/(4*k*a).
 This tests that ideal constriction model, not experimental bed validity.
@@ -94,3 +94,4 @@ class ContactModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

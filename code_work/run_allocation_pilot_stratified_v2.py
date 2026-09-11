@@ -10,6 +10,7 @@ conduction (no provisional fluid-gap edges).
 
 from __future__ import annotations
 
+from collections import OrderedDict
 import argparse
 import csv
 import importlib.util
@@ -76,11 +77,16 @@ class ContactOnlyEvaluator:
         self.d_ref = float(2.0 * np.median(self.radii))
         self.overlap_floor = overlap_floor_ratio * self.d_ref
         self.wall_tolerance = wall_tolerance_ratio * self.d_ref
-        self.cache: dict[frozenset[int], Evaluation] = {}
+        # Bound memory: an Evaluation retains all edges and node temperatures.
+        self.cache = OrderedDict()
+        self.evaluated_allocations = set()
+        self.thermal_solve_count = 0
+        self.maximum_energy_balance_error = 0.0
 
     def evaluate(self, high_ids: Iterable[int]) -> Evaluation:
         key = frozenset(int(i) for i in high_ids)
         if key in self.cache:
+            self.cache.move_to_end(key)
             return self.cache[key]
         unknown = key - self.known_ids
         if unknown:
@@ -117,6 +123,11 @@ class ContactOnlyEvaluator:
             int(active.sum()), temperature, edges,
         )
         self.cache[key] = result
+        self.evaluated_allocations.add(key)
+        self.thermal_solve_count += 1
+        self.maximum_energy_balance_error = max(self.maximum_energy_balance_error, result.balance_error)
+        if len(self.cache) > 64:
+            self.cache.popitem(last=False)
         return result
 
 
@@ -471,10 +482,10 @@ def main() -> None:
             str(restart): restart_history[-1][2]
             for restart, _, _, restart_history in optimized_runs
         },
-        "unique_thermal_evaluations": len(evaluator.cache),
-        "maximum_energy_balance_error": max(
-            r.balance_error for r in evaluator.cache.values()
-        ),
+        "unique_thermal_evaluations": len(evaluator.evaluated_allocations),
+        "actual_thermal_solves": evaluator.thermal_solve_count,
+        "thermal_model": "circular_constriction_4a_v2",
+        "maximum_energy_balance_error": evaluator.maximum_energy_balance_error,
     }
     (output / "allocation_summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
@@ -484,3 +495,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

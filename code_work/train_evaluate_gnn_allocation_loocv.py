@@ -263,10 +263,12 @@ def train_model(model: nn.Module, training: list[Graph], validation: Graph,
     for epoch in range(1, epochs + 1):
         model.train()
         optimizer.zero_grad()
-        train_loss = torch.stack([
-            ranking_loss(model(graph), graph, bce_weight) for graph in training
-        ]).mean()
-        train_loss.backward()
+        # Accumulate the mean gradient one graph at a time to bound memory.
+        for graph in training:
+            loss = ranking_loss(model(graph), graph, bce_weight) / len(training)
+            if not torch.isfinite(loss):
+                raise RuntimeError("Non-finite training loss")
+            loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), 5.0)
         optimizer.step()
 
@@ -295,6 +297,8 @@ def train_model(model: nn.Module, training: list[Graph], validation: Graph,
 
 def predict(model: nn.Module, graph: Graph) -> tuple[np.ndarray, float]:
     model.eval()
+    if graph.x.is_cuda:
+        torch.cuda.synchronize(graph.x.device)
     started = time.perf_counter()
     with torch.no_grad():
         scores = model(graph).detach().cpu().numpy()
@@ -441,6 +445,7 @@ def main() -> None:
     parser.add_argument("--bce-weight", type=float, default=0.20)
     parser.add_argument("--seed", type=int, default=20260822)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    parser.add_argument("--test-case", help="Evaluate only this held-out case (campaign checkpoint unit)")
     args = parser.parse_args()
 
     model_names = [name.strip() for name in args.models.split(",") if name.strip()]
@@ -462,11 +467,15 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     ids_output.mkdir(parents=True, exist_ok=True)
     graphs = load_graphs(dataset)
+    if args.test_case and args.test_case not in {g.case for g in graphs}:
+        parser.error("--test-case is not in the dataset")
     solver = pilot.load_solver(args.solver.resolve())
     evaluator_cache = {}
     rows: list[dict] = []
 
     for test_index, test_raw in enumerate(graphs):
+        if args.test_case and test_raw.case != args.test_case:
+            continue
         validation_index = (test_index - 1) % len(graphs)
         training_raw = [
             graph for index, graph in enumerate(graphs)
@@ -504,6 +513,16 @@ def main() -> None:
                     model, training, validation, args.epochs, args.patience,
                     args.learning_rate, args.weight_decay, args.bce_weight,
                 )
+                # Save weights and training-only normalization for reproducibility.
+                checkpoint = output / "models" / f"{test.case}_{model_name}_repeat{repeat}.pt"
+                checkpoint.parent.mkdir(exist_ok=True)
+                torch.save({"state_dict": model.state_dict(),
+                            "scaler": [v.tolist() for v in stats],
+                            "settings": {k: str(v) if isinstance(v, Path) else v
+                                         for k, v in vars(args).items()},
+                            "training_cases": [g.case for g in training_raw],
+                            "validation_case": validation.case,
+                            "test_case": test.case, "run_seed": run_seed}, checkpoint)
                 scores, inference_s = predict(model, test)
                 ids = select_by_quota(test_raw, scores)
                 result = evaluator.evaluate(ids)
@@ -561,12 +580,12 @@ def main() -> None:
             "retain_gnn_if": [
                 "GNN outperforms heat-path ranking on most held-out packings",
                 "GNN clearly outperforms the same-feature non-graph MLP",
-                "GNN recovers approximately 0.8 or more of the optimizer gain",
+                "Report recovered search gain without imposing a post-hoc threshold",
                 "Inference plus one thermal verification is much cheaper than swap search",
             ],
             "warning": (
-                "Ten graphs constitute a proof of concept. Expand the packing "
-                "ensemble only if the held-out result is promising."
+                "Transfer is tested between realizations of the specified packing. "
+                "Do not infer transfer to different PSDs, sizes or porosities."
             ),
         },
     }
@@ -578,3 +597,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

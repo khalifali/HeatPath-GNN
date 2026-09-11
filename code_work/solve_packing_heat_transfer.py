@@ -172,14 +172,15 @@ def minimum_image_vector(a: np.ndarray, b: np.ndarray, box: Box) -> np.ndarray:
 def harmonic_contact_conductance(k_i: float, k_j: float, a: float) -> float:
     if min(k_i, k_j, a) <= 0.0:
         return 0.0
-    return 2.0 * a * k_i * k_j / (k_i + k_j)
+    # Two circular-contact spreading resistances in series: 1/(4*k*a) each.
+    return 4.0 * a * k_i * k_j / (k_i + k_j)
 
 
 def wall_contact_conductance(k_particle: float, k_wall: float, a: float) -> float:
     if min(k_particle, a) <= 0.0:
         return 0.0
     if math.isinf(k_wall):
-        return 2.0 * a * k_particle
+        return 4.0 * a * k_particle
     return harmonic_contact_conductance(k_particle, k_wall, a)
 
 
@@ -580,6 +581,7 @@ def run(args: argparse.Namespace) -> dict:
     )
     write_vtp_outputs(output_dir, particles, box, conductivity, temperature, g_hot, g_cold, edges)
     summary = {
+        "thermal_model": "circular_constriction_4a_v2",
         "case_directory": str(case_dir),
         "particles": n,
         "thermally_solved_particles": int(np.count_nonzero(active_mask)),
@@ -663,3 +665,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

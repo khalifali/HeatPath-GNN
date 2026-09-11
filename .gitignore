@@ -25,3 +25,8 @@ venv/
 
 # Disposable ML pipeline checks
 /code_work/gnn_loocv_smoke_test/
+
+# New campaigns and isolated Python environments
+/runs/
+/campaign30.log
+

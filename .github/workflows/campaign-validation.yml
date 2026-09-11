@@ -1,0 +1,65 @@
+name: HeatPath campaign validation
+on:
+  push:
+    branches: [codex/campaign30-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 90
+    env:
+      LD_LIBRARY_PATH: ""
+      LD_PRELOAD: ""
+      PYTHONPATH: ""
+      PYTHONHOME: ""
+      PYTHONNOUSERSITE: "1"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    defaults:
+      run:
+        shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: heatpath-source
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lammps/lammps
+          ref: 9e42b6f0f2c68a092d5847d4127a053dc50e126a
+          path: heatpath-lammps-source
+          persist-credentials: false
+      - name: Isolated Python environment
+        run: |
+          /usr/bin/python3 -m venv "$RUNNER_TEMP/heatpath-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/venv"
+          task_python="$RUNNER_TEMP/heatpath-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/venv/bin/python"
+          "$task_python" -m pip install -r heatpath-source/code_work/requirements_campaign.txt
+          "$task_python" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Build pinned LAMMPS with GRANULAR
+        run: |
+          cmake -S heatpath-lammps-source/cmake -B "$RUNNER_TEMP/heatpath-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/build" \
+            -D CMAKE_BUILD_TYPE=Release -D BUILD_MPI=ON -D PKG_GRANULAR=ON
+          cmake --build "$RUNNER_TEMP/heatpath-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/build" --parallel 8
+      - name: Validate 3 new full-duration packings and the complete pipeline
+        run: |
+          task_root="$RUNNER_TEMP/heatpath-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          "$task_root/venv/bin/python" -u heatpath-source/code_work/run_campaign30.py \
+            --lammps "$task_root/build/lmp" --mpi-ranks 8 --smoke-test \
+            --output "$task_root/results"
+          "$task_root/venv/bin/python" -u heatpath-source/code_work/run_campaign30.py \
+            --lammps "$task_root/build/lmp" --mpi-ranks 8 --smoke-test \
+            --output "$task_root/results"
+      - name: Upload report and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heatpath-smoke-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/heatpath-${{ github.run_id }}-${{ github.run_attempt }}/results/report/
+            ${{ runner.temp }}/heatpath-${{ github.run_id }}-${{ github.run_attempt }}/results/logs/
+            ${{ runner.temp }}/heatpath-${{ github.run_id }}-${{ github.run_attempt }}/results/checkpoints/
+            ${{ runner.temp }}/heatpath-${{ github.run_id }}-${{ github.run_attempt }}/results/campaign_manifest.json
+

@@ -1,5 +1,10 @@
 # Contact-model audit — 2026-09-11
 
+**Update:** The 30-packing campaign corrects the thermal prefactor and DEM
+argument order. All nine regression tests now pass. The findings below describe
+the pre-correction model; old stored results have not been regenerated. See
+[campaign30.md](campaign30.md) for the new workflow.
+
 Run from code_work:
 
 ```bash
@@ -100,3 +105,4 @@ No LAMMPS simulation or full ML training was run.
 Recommended sequence: correct the thermal prefactor and update affected
 absolute results; resolve the historical DEM parameters; then regenerate
 new packings with explicit verified settings and assess contact sensitivity.
+
