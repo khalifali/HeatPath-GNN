@@ -1,6 +1,6 @@
 # HeatPath-GNN presentation
 
-The 24-slide Beamer deck follows the supplied PoreAccess-CO2 template and
+The 25-slide Beamer deck follows the supplied PoreAccess-CO2 template and
 presents the completed 30-packing campaign, from motivation to conclusions.
 
 - `heatpath_gnn.tex` and `heatpath_gnn.pdf`: presentation source and slides.
@@ -41,3 +41,5 @@ Campaign procedure: ../docs/campaign30.md
 
 Only presentation-related files live here. Simulation and analysis programs
 remain in `code_work/`.
+
+Terminology: all-low thermal solve supplies features; degree ranking and heat-throughput ranking are allocation methods. Slide 10 shows the workflow and slide 11 separates their three roles. To regenerate the four method-labelled figures from the retained CSV data, run `python3 beamer/refresh_method_figures.py` (NumPy and Matplotlib required). This changes presentation labels only, not simulation results.
