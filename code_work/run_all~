@@ -1,7 +1,0 @@
-#for seed in 18427 29173 37811 46549 55291 64109 72869 81647 90439 99223
-for seed in  46549 55291 64109 72869 81647 90439 99223
-do
-    mpirun -np 8 lmp \
-      -var seed_realization "$seed" \
-      -in in.generate_equal_porosity_psd.lammps
-done

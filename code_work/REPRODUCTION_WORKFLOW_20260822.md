@@ -1,7 +1,7 @@
 # Reproduction workflow: DEM packing, thermal network and conductive-particle allocation
 
 This file records the workflow used up to the controlled fixed-volume allocation
-study. Run all commands from the project directory containing the scripts and
+study. Run all commands from `code_work/`, the directory containing the scripts and
 the `packing_seed_*` case folders.
 
 ## 1. Software and Python dependencies
@@ -22,8 +22,7 @@ Expected terminal message: `heat-transfer solver self-test: PASS`.
 
 | File | Role |
 |---|---|
-| `in.generate_equal_porosity_psd_v5.lammps` | Generate one mechanically relaxed packing with corrected contact IDs |
-| `in.extract_contacts_from_restart.lammps` | Recover corrected contact IDs from an older restart if required |
+| `in.generate_equal_porosity_psd.lammps` | Generate one mechanically relaxed packing with corrected contact IDs |
 | `packing_dump_to_vtp.py` | Convert a selected particle dump to VTP for ParaView |
 | `solve_packing_heat_transfer.py` | Build and solve the steady thermal contact network |
 | `test_heat_transfer_solver.py` | Deterministic thermal-solver verification test |
@@ -47,7 +46,7 @@ For each seed, run:
 
 ```bash
 mpirun -np 8 lmp -var seed_realization 18427 \
-  -in in.generate_equal_porosity_psd_v5.lammps
+  -in in.generate_equal_porosity_psd.lammps
 ```
 
 Change only `seed_realization`. Keep all mechanical parameters, particle counts,
@@ -64,20 +63,13 @@ packing_summary.dat
 The controlled number-based PSD is 100/300/100 particles with diameters
 1.5/2.0/2.5 mm. There are 500 particles and the nominal porosity is 0.38.
 
-### Important contact-ID correction
+### Contact-ID formatting
 
-The obsolete v4 input formatted compute-derived particle IDs incorrectly as
-integers and could write zeros. The final v5 generator uses floating-point
-formatting with zero decimals for those values. If an old restart must be used,
-recover its contacts with:
-
-```bash
-lmp -var case_dir packing_seed_18427 \
-  -in in.extract_contacts_from_restart.lammps
-```
-
-Then use `contacts_final_with_ids.dump`. Packings used in the final study were
-regenerated with v5, so their normal `contacts_final.dump` is valid.
+The uploaded `in.generate_equal_porosity_psd.lammps` contains the corrected
+contact-ID formatting (floating-point values printed with zero decimals).
+Older notes called this generator v5. The old v4 generator and restart-repair
+input are not part of this repository. Use the supplied final dumps or the
+current generator.
 
 ## 4. Check packing equivalence and visualize
 
@@ -350,16 +342,6 @@ python3 build_gnn_allocation_dataset.py \
 ```
 
 If allocation folders use another naming convention, change only the template.
-For example:
-
-```bash
-python3 build_gnn_allocation_dataset.py \
-  --root . \
-  --pattern 'packing_seed_*' \
-  --allocation-template 'allocation_pilot_stratified_seed{seed}_p3000' \
-  --output gnn_allocation_dataset
-```
-
 To test one case before processing all packings:
 
 ```bash

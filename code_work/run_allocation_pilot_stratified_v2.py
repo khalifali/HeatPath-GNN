@@ -277,7 +277,8 @@ def main() -> None:
     parser.add_argument("--solver", type=Path,
                         default=Path(__file__).with_name("solve_packing_heat_transfer.py"))
     parser.add_argument("--output", type=Path,
-                        default=Path("allocation_pilot_seed18427"))
+                        default=None,
+                        help="Output directory (default: CASE/allocation_stratified_p<swap-proposals>)")
     parser.add_argument("--k-low", type=float, default=1.0)
     parser.add_argument("--k-high", type=float, default=10.0)
     parser.add_argument("--high-count", type=int, default=50)
@@ -340,7 +341,7 @@ def main() -> None:
                     f"type {atom_type} contains multiple radii; type quotas alone "
                     "would not guarantee equal conductive volume"
                 )
-    output = args.output.resolve()
+    output = (args.output or (args.case / f"allocation_stratified_p{args.swap_proposals}")).resolve()
     output.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(args.seed)
 

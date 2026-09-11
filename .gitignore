@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Editor backups
+*~
+*.swp
+
+# LaTeX auxiliary files (retain sources, figures and final PDFs)
+*.aux
+*.log
+*.out
+*.nav
+*.snm
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Intermediate DEM snapshots; final dumps and restarts remain tracked
+/code_work/packing_seed_*/growth_*.dump
+
+# Disposable ML pipeline checks
+/code_work/gnn_loocv_smoke_test/

@@ -425,7 +425,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, default=Path("gnn_allocation_dataset"))
     parser.add_argument("--project-root", type=Path, default=Path("."))
-    parser.add_argument("--output", type=Path, default=Path("gnn_loocv_results"))
+    parser.add_argument("--output", type=Path, default=Path("gnn_loocv_results_rank_ensemble"))
     parser.add_argument("--solver", type=Path,
                         default=Path(__file__).with_name("solve_packing_heat_transfer.py"))
     parser.add_argument("--models", default="mlp,gnn",
