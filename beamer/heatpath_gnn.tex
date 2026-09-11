@@ -63,10 +63,12 @@
 \begin{frame}{}
 \small
 \begin{center}\Large\bfseries HeatPath--GNN\\[1ex]Learning where to place conductive particles\end{center}\vspace{.4cm}\begin{columns}[T,onlytextwidth]\column{.36\textwidth}\vspace{.4cm}\hi{Thermal transport through particle contact networks}\\[.6cm]Technical University of Munich\\Chair of Process Systems Engineering\\[.5cm]Ali Khalifa \& Heiko Briesen\column{.60\textwidth}\includegraphics[width=\linewidth,height=4.1cm,keepaspectratio]{figures/uhrenturm.jpg}\end{columns}
+
 \end{frame}
 \begin{frame}{Motivation: conductive material is a limited resource}
 \small
 \begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Heat transfer through particle beds}\begin{itemize}\item Heating and cooling granular products\item Thermal storage and temperature control\item Transport depends on contacts between particles\end{itemize}\column{.48\textwidth}\hi{A design choice}\begin{itemize}\item Highly conductive material may be costly\item The material budget is fixed\item Its position within the bed can change the conducting network\end{itemize}\end{columns}\vspace{.5cm}\result{Can we obtain better heat transfer from the same amount of conductive material?}
+
 \end{frame}
 \begin{frame}{The allocation problem}
 \small
@@ -80,23 +82,25 @@
 \foreach \y in {0,...,3}{\shade[ball color=tumorange] (9,\y*.9) circle (.38);}
 \node[tumred] at (5.3,3.45) {hot};\node[tumblue] at (5.3,-.35) {cold};
 \end{tikzpicture}\par\small Orange: high conductivity. Grey: low conductivity. Schematic only.\par\vspace{.25cm}\result{Geometry and material amount stay fixed. Only particle labels change.}
+
 \end{frame}
 \begin{frame}{Thirty packings with the same nominal porosity}
 \small
 \begin{columns}[T,onlytextwidth]\column{.48\textwidth}\begin{tabular}{lr}\toprule Quantity & Value\\\midrule Particles & 500\\Diameters [mm] & 1.5 / 2.0 / 2.5\\Counts & 100 / 300 / 100\\Nominal porosity & 0.38\\Independent seeds & 30\\\bottomrule\end{tabular}\column{.48\textwidth}\begin{itemize}\item Periodic boundaries in $x$ and $y$\item Two fixed thermal walls in $z$\item No gravity during generation\item Grow small spheres, then relax\item Accept final translational KE $\leq10^{-12}$ J\end{itemize}\end{columns}\vspace{.4cm}\small DEM: Hertz--Mindlin, $E=50$ MPa, $\nu=0.25$, restitution $0.30$, friction $0.50$.
+
 \end{frame}
-\begin{frame}{A contact network represents steady heat conduction}
+\begin{frame}{Contact conductance links temperature difference to heat rate}
 \small
-\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\centering\begin{tikzpicture}[scale=.9]
-\node[bead,fill=tumorange!65] (i) at (0,1.4) {$i$};
-\node[bead] (j) at (2,2.4) {$j$};\node[bead] (k) at (2,.3) {$k$};
-\node[bead] (l) at (4,1.4) {$l$};
-\draw[arr] (i)--node[above] {$G_{ij}$}(j);\draw[arr](i)--(k);\draw[arr](j)--(l);\draw[arr](k)--(l);
-\node at (2,-.6) {Nodes: particles\quad Edges: contacts};
-\end{tikzpicture}\column{.48\textwidth}\hi{Conservative balance at each particle}
-\[\sum_j G_{ij}(T_i-T_j)+\sum_wG_{iw}(T_i-T_w)=0\]
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Conductance: units W/K}
+\[Q_{ij}=G_{ij}(T_i-T_j)\]
+$G_{ij}$: between particles $i$ and $j$.\\[.15cm]
+$G_{iw}$: between particle $i$ and wall $w$.\\[.15cm]
+$Q_{ij}$: heat rate [W].\par\vspace{.2cm}
+\small Material conductivity $k$ has units W/(m K).\column{.48\textwidth}\hi{Steady balance at particle $i$}
+\[\sum_jG_{ij}(T_i-T_j)+\sum_wG_{iw}(T_i-T_w)=0\]
+\hi{Whole-bed conductivity}
 \[k_{\rm eff}=\frac{QH}{A(T_{\rm hot}-T_{\rm cold})}\]
-\small $Q$: wall heat rate, $H$: bed height, $A$: wall area.\end{columns}\vspace{.35cm}\result{Solve particle temperatures, then calculate the bed conductivity.}
+$Q$: wall heat rate, $H$: height, $A$: wall area.\end{columns}\vspace{.3cm}\result{A larger conductance transfers more heat for the same temperature difference.}
 \end{frame}
 \begin{frame}{Thermal conductance follows contact size and material}
 \small
@@ -108,16 +112,33 @@
 \hi{Isothermal wall}
 \[G_{iw}=4a_{iw}k_i\]
 \small Two spreading resistances in series give the particle-contact formula.\end{columns}\vspace{.25cm}\small Ideal circular constriction model. Its small-contact assumption needs physical assessment.
+
 \end{frame}
 \begin{frame}{Every method uses the same conductive-material budget}
 \small
 \centering\begin{tabular}{lrrr}\toprule Diameter [mm]&1.5&2.0&2.5\\\midrule Total particles&100&300&100\\High-conductivity particles&10&30&10\\\bottomrule\end{tabular}\vspace{.4cm}
 \[\max_{\mathbf{s}}\; k_{\rm eff}(\mathbf{s}),\qquad s_i\in\{0,1\},\qquad\sum_{i\in\mathcal{B}_b}s_i=q_b\]
 \small $s_i=1$: conductive particle. $\mathcal B_b$: size class. $q_b$: class quota.\par\vspace{.3cm}\result{Fifty of 500 particles are conductive, with exactly 10\% in each size class.}
+
 \end{frame}
-\begin{frame}{Reference allocations and the search teacher}
+\begin{frame}{Reference methods select which 50 particles become conductive}
 \small
-\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Simple reference methods}\begin{itemize}\item Random: mean of 100 feasible allocations\item Degree: favour particles with many contacts\item Heat path: rank homogeneous-baseline heat throughput\end{itemize}\column{.48\textwidth}\hi{Same-size swap search}\begin{itemize}\item Exchange one high and one low label\item Both particles belong to the same size class\item Accept conductivity improvements\item Five restarts, 3000 proposals each\end{itemize}\end{columns}\vspace{.25cm}\result{The teacher is the best allocation found within a fixed search budget.}
+\begin{tabular}{p{2.0cm}p{10.6cm}}\toprule Method & Selection rule within each size class\\\midrule
+Random & Draw 10 / 30 / 10 particles at random. Repeat 100 times and average the resulting bed conductivities.\\[.25cm]
+Degree & Count each particle's contacting neighbours. Select the 10 / 30 / 10 particles with the highest counts.\\[.25cm]
+\shortstack[l]{Heat\\throughput} & First solve the all-low-conductivity bed. Select the 10 / 30 / 10 particles with the largest baseline heat-throughput scores.\\\bottomrule\end{tabular}
+\vspace{.4cm}\result{Each allocation gives a list of high-conductivity particle IDs, then a thermal solve gives $k_{\rm eff}$.}
+\small Existing result plots label heat-throughput ranking as ``Heat path''.
+\end{frame}
+\begin{frame}{Swap search starts from the better reference allocation}
+\small
+\begin{enumerate}
+\item Evaluate the degree and heat-throughput allocations.\par Start from whichever gives the larger $k_{\rm eff}$.
+\item Randomly choose a size class, then one high-$k$ particle and one low-$k$ particle from that class.
+\item Exchange their material labels and solve the thermal network.
+\item Keep the swap if $k_{\rm eff}$ increases. Otherwise keep the previous allocation.
+\end{enumerate}\vspace{.25cm}\result{Five runs use the same starting allocation and different random swap sequences.}
+\small Each run proposes 3000 swaps. Retain the best final allocation found.
 \end{frame}
 \begin{frame}{Training and later use have different workflows}
 \small
@@ -129,14 +150,42 @@
 \draw[arr](d)--(e);\draw[arr](e)--(f);
 \node[anchor=east,tumblue] at (-1.7,-2.2) {Later use};
 \end{tikzpicture}\par\vspace{.4cm}\result{The learned ranking replaces repeated candidate search at prediction time.}
+
 \end{frame}
-\begin{frame}{The GNN combines local geometry with baseline physics}
+\begin{frame}{Baseline physics before material allocation}
 \small
-\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Eight particle features}\begin{itemize}\item Diameter, height and contact degree\item Hot-wall, cold-wall and anchored flags\item Homogeneous temperature\item Homogeneous heat throughput\end{itemize}\column{.48\textwidth}\hi{Six contact features}\begin{itemize}\item Contact radius\item Relative displacement in $x,y,z$\item Absolute vertical alignment\item Homogeneous absolute contact heat rate\end{itemize}\end{columns}\vspace{.3cm}\small Three message-passing layers, width 64. The MLP receives the same particle features, without neighbour messages.
+\hi{Homogeneous means identical material conductivity}
+\[k_i=k_{\rm low}=1\;\mathrm{W\,m^{-1}K^{-1}}\qquad\text{for every particle}\]
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Baseline temperature $T_i^{(0)}$}
+\par The thermal solve gives each particle's temperature.\par\vspace{.2cm}
+Temperatures vary between the 301 K and 300 K walls, although all particles have the same conductivity.
+\column{.48\textwidth}\hi{Baseline heat-throughput score}
+\[s_i^{(0)}=\sum_{j\in\mathcal N(i)}\left|G_{ij}^{(0)}(T_i^{(0)}-T_j^{(0)})\right|\]
+Sum the absolute heat rates at particle--particle contacts [W]. A larger score indicates more contact heat traffic.
+\end{columns}\vspace{.25cm}\result{These inputs are available before we choose any high-conductivity particles.}
 \end{frame}
-\begin{frame}{Scores become a feasible allocation}
+\begin{frame}{The GNN uses geometry and the baseline thermal solution}
 \small
-\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Supervised ranking}\begin{itemize}\item Search restart selections provide soft particle targets\item Listwise ranking within each size class\item Additional binary cross-entropy term\item Validation controls early stopping\end{itemize}\column{.48\textwidth}\hi{Selection at prediction time}\begin{itemize}\item Train three repeats per model\item Average within-class ranks\item Select the top 10 / 30 / 10 particles\item Verify conductivity with the thermal solver\end{itemize}\end{columns}
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Eight particle features}\begin{itemize}\item Diameter, height and contact degree\item Hot-wall, cold-wall and anchored flags\item Normalized baseline temperature\item Normalized baseline heat-throughput score\end{itemize}\column{.48\textwidth}\hi{Six contact features}\begin{itemize}\item Contact radius\item Relative displacement in $x,y,z$\item Absolute vertical alignment\item Normalized absolute baseline contact heat rate\end{itemize}\end{columns}\vspace{.3cm}\small Three message-passing layers, width 64. MLP uses the same particle features. GNN additionally uses neighbour messages and contact features.
+\end{frame}
+\begin{frame}{Training targets describe how often search selects each particle}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{A soft selection target}
+\[y_i=\frac{\text{search runs selecting particle }i}{5}\]
+Example: selection in four of five runs gives $y_i=0.8$.\par\vspace{.3cm}
+The network predicts a score $z_i$ and $p_i=\mathrm{sigmoid}(z_i)$.\column{.48\textwidth}\hi{Two parts of the training loss}
+\[L=L_{\rm ranking}+0.2L_{\rm BCE}\]
+Ranking: favour particles frequently selected by search, within each size class.\par\vspace{.2cm}
+Binary cross entropy (BCE): penalize disagreement between $p_i$ and $y_i$.\end{columns}\vspace{.3cm}\result{The model learns particle priorities. Exact quotas are enforced after scoring.}
+\end{frame}
+\begin{frame}{Scoring assigns priorities, then ranking enforces the budget}
+\small
+\begin{enumerate}
+\item Run the trained model to obtain one numerical score per particle.\par A higher score means higher priority for high conductivity.
+\item Convert scores to ranks within each size class, for each of three trained repeats.
+\item Average those ranks and select the top 10 / 30 / 10 particles.
+\item Assign $k_{\rm high}=10$ to those particles and solve the thermal network to verify $k_{\rm eff}$.
+\end{enumerate}\vspace{.3cm}\result{Fifty selected particles, regardless of how many predicted probabilities exceed 0.5.}
 \end{frame}
 \begin{frame}{Each test packing is withheld from model fitting}
 \small
@@ -145,43 +194,52 @@
 \node[box,text width=3.4cm] (b) at (4.4,0) {1 validation packing\\early stopping};
 \node[box,text width=3.4cm] (c) at (8.8,0) {1 test packing\\reported allocation};
 \end{tikzpicture}\par\vspace{.5cm}\begin{itemize}\item Repeat for all 30 test packings\item Up to 400 epochs and patience 60\item Compare methods on the same held-out geometries\end{itemize}\vspace{.2cm}\result{This tests transfer between realizations of the specified packing.}
+
 \end{frame}
 \begin{frame}{Gain and recovery answer different questions}
 \small
 \[\mathrm{Gain}_m=100\frac{k_m-k_{\rm random}}{k_{\rm random}}\]
 \[\mathrm{Recovery}_m=100\frac{k_m-k_{\rm random}}{k_{\rm search}-k_{\rm random}}\]
 \vspace{.2cm}\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Gain}\\How much better is this allocation than random?\column{.48\textwidth}\hi{Recovery}\\How much of the search improvement does the model obtain?\end{columns}\vspace{.4cm}\small Compute both per packing, then average. Error bars describe sample SD across packings.
+
 \end{frame}
 \begin{frame}{GNN improves conductivity by 30\% over random}
 \small
 \begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/02_allocation_gain.pdf}\column{.36\textwidth}\hi{Mean improvement}\par\vspace{.2cm}\begin{tabular}{lr}Degree&0.6\%\\Heat path&6.7\%\\MLP&17.9\%\\GNN&\textbf{30.0\%}\\Search&51.8\%\end{tabular}\vspace{.4cm}\par Same geometry and material budget for every comparison.\end{columns}
+
 \end{frame}
 \begin{frame}{Absolute conductivity remains below the search reference}
 \small
 \begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/01_conductivity.pdf}\column{.36\textwidth}\hi{Mean $k_{\rm eff}$ [W/(m K)]}\par\vspace{.2cm}\begin{tabular}{lr}Random&0.2284\\MLP&0.2692\\GNN&0.2970\\Search&0.3467\end{tabular}\vspace{.4cm}\par\small Grey lines connect results on the same packing.\end{columns}
+
 \end{frame}
 \begin{frame}{GNN beats MLP on 29 of 30 held-out packings}
 \small
 \begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/03_ml_recovery.pdf}\column{.36\textwidth}\hi{Recovered search improvement}\par\vspace{.2cm}GNN: \textbf{58.0\%}\\SD: 9.8 percentage points\\[.35cm]MLP: 34.5\% mean\\[.35cm]\small Improvement is consistent, but performance varies between packings.\end{columns}
+
 \end{frame}
 \begin{frame}{Contact-network diagnostics help interpret allocation}
 \small
 \begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/04_mechanisms.pdf}\column{.36\textwidth}\hi{Two diagnostics}\begin{itemize}\item Fraction of absolute contact heat carried by high--high contacts\item Number of high-conductivity clusters spanning both walls\end{itemize}\small These describe the selected network. They do not prove causality.\end{columns}
+
 \end{frame}
 \begin{frame}{Numerical checks pass, but contact sizes need scrutiny}
 \small
 \begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/05_contact_geometry.pdf}\column{.36\textwidth}\hi{Recorded checks}\begin{itemize}\item Maximum final KE: $8.4\times10^{-13}$ J\item Maximum energy imbalance: $9.01\times10^{-12}$\end{itemize}\hi{Contact radius / smaller radius}\par Median: 0.192\\95th percentile: 0.258\\Maximum: 0.347\end{columns}
+
 \end{frame}
 \begin{frame}{The numerical overlap floor has little influence}
 \small
 \begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/06_floor_sensitivity.pdf}\column{.36\textwidth}\hi{Fixed allocations}\begin{itemize}\item Vary the numerical overlap floor\item Largest absolute conductivity change: 0.000923\%\item Sensitivity is negligible over the tested range\end{itemize}\small This does not test stiffness, loading or alternative contact laws.\end{columns}
+
 \end{frame}
-\begin{frame}{Fast scoring still requires two thermal solves}
+\begin{frame}{Fast scoring is one part of the complete prediction procedure}
 \small
-\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Recorded computational work}\begin{itemize}\item Search: about 14,964 thermal solves per packing\item GNN ensemble scoring: 8.63 ms mean\item MLP ensemble scoring: 0.295 ms mean\end{itemize}\column{.48\textwidth}\hi{Complete prediction procedure}\begin{itemize}\item Homogeneous thermal baseline\item Feature construction and model scoring\item Quota selection\item Thermal verification\end{itemize}\end{columns}\vspace{.35cm}\result{The campaign demonstrates fewer candidate evaluations, not a measured end-to-end speedup.}
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{What the reported times cover}\begin{itemize}\item Score all particles with trained models\item Mean GNN ensemble scoring: 8.63 ms\item Mean MLP ensemble scoring: 0.295 ms\end{itemize}\column{.48\textwidth}\hi{Additional work for a new packing}\begin{itemize}\item Solve the all-low-conductivity baseline\item Build particle and contact features\item Combine ranks and enforce quotas\item Solve the selected thermal network\end{itemize}\end{columns}\vspace{.3cm}\small Search uses about 14,964 thermal solves per packing. Training is an additional upfront cost.\par\vspace{.2cm}\result{Scoring time alone is insufficient to claim an end-to-end speedup.}
 \end{frame}
 \begin{frame}{Conclusions and next research steps}
 \small
 \begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{What the campaign establishes}\begin{itemize}\item Material placement strongly affects modelled conductivity\item GNN gains 30\% over random allocation\item Neighbour information improves on the MLP\item 58\% of best-found search gain is recovered\end{itemize}\column{.48\textwidth}\hi{What remains to establish}\begin{itemize}\item Physical sensitivity of contact areas\item Transfer to other packing specifications\item GNN-initialized search versus random starts\item Complete runtime and manufacturing feasibility\end{itemize}\end{columns}\vspace{.35cm}\result{A learned particle ranking captures useful thermal-network structure.}
+
 \end{frame}
 \end{document}

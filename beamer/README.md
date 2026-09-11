@@ -1,6 +1,6 @@
 # HeatPath-GNN presentation
 
-The 21-slide Beamer deck follows the supplied PoreAccess-CO2 template and
+The 24-slide Beamer deck follows the supplied PoreAccess-CO2 template and
 presents the completed 30-packing campaign, from motivation to conclusions.
 
 - `heatpath_gnn.tex` and `heatpath_gnn.pdf`: presentation source and slides.
