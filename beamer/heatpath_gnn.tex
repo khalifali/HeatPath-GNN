@@ -1,0 +1,187 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,graphicx,amsmath,booktabs}
+\usepackage{xcolor,tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,shapes.geometric}
+
+% Visual language retained from the supplied research-ideas template.
+\definecolor{tumblue}{RGB}{0,101,189}
+\definecolor{tumdark}{RGB}{0,51,89}
+\definecolor{tumgray}{RGB}{105,105,105}
+\definecolor{tumlight}{RGB}{235,243,248}
+\definecolor{tumgreen}{RGB}{162,173,0}
+\definecolor{tumorange}{RGB}{243,125,32}
+\definecolor{tumred}{RGB}{229,52,24}
+\definecolor{zeogray}{RGB}{218,213,202}
+\definecolor{poreblue}{RGB}{94,181,226}
+\definecolor{co2blue}{HTML}{2C7FB8}
+
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{normal text}{fg=black,bg=white}
+\setbeamercolor{frametitle}{fg=tumblue}
+\setbeamercolor{structure}{fg=tumblue}
+\setbeamercolor{itemize item}{fg=tumblue}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{headline}{%
+  \leavevmode\begin{beamercolorbox}[wd=\paperwidth,ht=3.2ex,dp=1.6ex]{frametitle}
+  \hfill\raisebox{-0.85cm}{\includegraphics[height=0.8cm]{figures/tum_logo.png}}\hspace*{1em}
+  \end{beamercolorbox}}
+\setbeamertemplate{footline}{%
+  \leavevmode\begin{beamercolorbox}[wd=\paperwidth,ht=3.2ex,dp=1.3ex]{author in head/foot}
+  \hspace*{1em}\color{tumgray} Khalifa and Briesen \enspace|\enspace HeatPath--GNN
+  \hfill\insertframenumber/\inserttotalframenumber\hspace*{1em}
+  \end{beamercolorbox}}
+
+\newcommand{\hi}[1]{\textcolor{tumblue}{\textbf{#1}}}
+\newcommand{\question}[1]{\par%
+  \begin{beamercolorbox}[rounded=true,sep=0.65em]{block body}
+  \centering\large\color{tumdark}\textbf{#1}
+  \end{beamercolorbox}}
+\newcommand{\result}[1]{\par%
+  \begin{beamercolorbox}[rounded=true,sep=0.55em]{block body}
+  \centering\color{tumdark}\textbf{#1}
+  \end{beamercolorbox}}
+\newcommand{\source}[1]{\par\vfill{\tiny\color{tumgray}Source: #1}}
+\tikzset{
+  box/.style={draw=tumdark!75,rounded corners=2pt,fill=tumlight,
+    align=center,minimum height=9mm,text width=2.55cm,font=\small,inner sep=3pt},
+  arr/.style={-{Latex[length=2mm]},thick,tumblue},
+  bead/.style={circle,draw=black!65,fill=zeogray,minimum size=6.4mm,inner sep=0pt},
+  pore/.style={circle,draw=tumblue!80!black,fill=poreblue,minimum size=1.8mm,inner sep=0pt},
+  throat/.style={draw=tumblue!82,line width=1.05pt}}
+
+\newcommand{\FlexRowHeight}{}
+\newenvironment{FlexRow}[1]{%
+  \def\FlexRowHeight{#1}\begin{overlayarea}{\textwidth}{#1}\begin{columns}[T,onlytextwidth]
+}{\end{columns}\end{overlayarea}}
+\newcommand{\Col}[2]{\column{#1\textwidth}\begin{minipage}[t][\FlexRowHeight]{\linewidth}#2\end{minipage}}
+
+\setbeamertemplate{frametitle}{\vspace{0.05cm}\parbox{0.88\textwidth}{\large\color{tumblue}\insertframetitle}}
+\begin{document}
+\begin{frame}{}
+\small
+\begin{center}\Large\bfseries HeatPath--GNN\\[1ex]Learning where to place conductive particles\end{center}\vspace{.4cm}\begin{columns}[T,onlytextwidth]\column{.36\textwidth}\vspace{.4cm}\hi{Thermal transport through particle contact networks}\\[.6cm]Technical University of Munich\\Chair of Process Systems Engineering\\[.5cm]Ali Khalifa \& Heiko Briesen\column{.60\textwidth}\includegraphics[width=\linewidth,height=4.1cm,keepaspectratio]{figures/uhrenturm.jpg}\end{columns}
+\end{frame}
+\begin{frame}{Motivation: conductive material is a limited resource}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Heat transfer through particle beds}\begin{itemize}\item Heating and cooling granular products\item Thermal storage and temperature control\item Transport depends on contacts between particles\end{itemize}\column{.48\textwidth}\hi{A design choice}\begin{itemize}\item Highly conductive material may be costly\item The material budget is fixed\item Its position within the bed can change the conducting network\end{itemize}\end{columns}\vspace{.5cm}\result{Can we obtain better heat transfer from the same amount of conductive material?}
+\end{frame}
+\begin{frame}{The allocation problem}
+\small
+\centering\begin{tikzpicture}[scale=.8]
+\foreach \off/\lab in {0/Distributed allocation,7/Connected allocation}{
+\fill[tumred!15] (\off-.5,3.3) rectangle (\off+4.5,3.6);
+\fill[tumblue!15] (\off-.5,-.5) rectangle (\off+4.5,-.2);
+\node at (\off+2,4) {\lab};
+\foreach \x in {0,...,4}\foreach \y in {0,...,3}{\shade[ball color=zeogray] (\off+\x,\y*.9) circle (.38);}}
+\foreach \x/\y in {0/0,2/1,4/2,1/3}{\shade[ball color=tumorange] (\x,\y*.9) circle (.38);}
+\foreach \y in {0,...,3}{\shade[ball color=tumorange] (9,\y*.9) circle (.38);}
+\node[tumred] at (5.3,3.45) {hot};\node[tumblue] at (5.3,-.35) {cold};
+\end{tikzpicture}\par\small Orange: high conductivity. Grey: low conductivity. Schematic only.\par\vspace{.25cm}\result{Geometry and material amount stay fixed. Only particle labels change.}
+\end{frame}
+\begin{frame}{Thirty packings with the same nominal porosity}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\begin{tabular}{lr}\toprule Quantity & Value\\\midrule Particles & 500\\Diameters [mm] & 1.5 / 2.0 / 2.5\\Counts & 100 / 300 / 100\\Nominal porosity & 0.38\\Independent seeds & 30\\\bottomrule\end{tabular}\column{.48\textwidth}\begin{itemize}\item Periodic boundaries in $x$ and $y$\item Two fixed thermal walls in $z$\item No gravity during generation\item Grow small spheres, then relax\item Accept final translational KE $\leq10^{-12}$ J\end{itemize}\end{columns}\vspace{.4cm}\small DEM: Hertz--Mindlin, $E=50$ MPa, $\nu=0.25$, restitution $0.30$, friction $0.50$.
+\end{frame}
+\begin{frame}{A contact network represents steady heat conduction}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\centering\begin{tikzpicture}[scale=.9]
+\node[bead,fill=tumorange!65] (i) at (0,1.4) {$i$};
+\node[bead] (j) at (2,2.4) {$j$};\node[bead] (k) at (2,.3) {$k$};
+\node[bead] (l) at (4,1.4) {$l$};
+\draw[arr] (i)--node[above] {$G_{ij}$}(j);\draw[arr](i)--(k);\draw[arr](j)--(l);\draw[arr](k)--(l);
+\node at (2,-.6) {Nodes: particles\quad Edges: contacts};
+\end{tikzpicture}\column{.48\textwidth}\hi{Conservative balance at each particle}
+\[\sum_j G_{ij}(T_i-T_j)+\sum_wG_{iw}(T_i-T_w)=0\]
+\[k_{\rm eff}=\frac{QH}{A(T_{\rm hot}-T_{\rm cold})}\]
+\small $Q$: wall heat rate, $H$: bed height, $A$: wall area.\end{columns}\vspace{.35cm}\result{Solve particle temperatures, then calculate the bed conductivity.}
+\end{frame}
+\begin{frame}{Thermal conductance follows contact size and material}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Particle--particle contact}
+\[a_{ij}=\sqrt{R_{ij}^{*}\delta_{ij}},\qquad R_{ij}^{*}=\frac{R_iR_j}{R_i+R_j}\]
+\[G_{ij}=\frac{4a_{ij}k_i k_j}{k_i+k_j}\]
+\small $\delta_{ij}$: geometric overlap.\\$a_{ij}$: Hertz contact radius.\column{.48\textwidth}\hi{Material assignment}
+\[k_i\in\{1,10\}\;\mathrm{W\,m^{-1}K^{-1}}\]
+\hi{Isothermal wall}
+\[G_{iw}=4a_{iw}k_i\]
+\small Two spreading resistances in series give the particle-contact formula.\end{columns}\vspace{.25cm}\small Ideal circular constriction model. Its small-contact assumption needs physical assessment.
+\end{frame}
+\begin{frame}{Every method uses the same conductive-material budget}
+\small
+\centering\begin{tabular}{lrrr}\toprule Diameter [mm]&1.5&2.0&2.5\\\midrule Total particles&100&300&100\\High-conductivity particles&10&30&10\\\bottomrule\end{tabular}\vspace{.4cm}
+\[\max_{\mathbf{s}}\; k_{\rm eff}(\mathbf{s}),\qquad s_i\in\{0,1\},\qquad\sum_{i\in\mathcal{B}_b}s_i=q_b\]
+\small $s_i=1$: conductive particle. $\mathcal B_b$: size class. $q_b$: class quota.\par\vspace{.3cm}\result{Fifty of 500 particles are conductive, with exactly 10\% in each size class.}
+\end{frame}
+\begin{frame}{Reference allocations and the search teacher}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Simple reference methods}\begin{itemize}\item Random: mean of 100 feasible allocations\item Degree: favour particles with many contacts\item Heat path: rank homogeneous-baseline heat throughput\end{itemize}\column{.48\textwidth}\hi{Same-size swap search}\begin{itemize}\item Exchange one high and one low label\item Both particles belong to the same size class\item Accept conductivity improvements\item Five restarts, 3000 proposals each\end{itemize}\end{columns}\vspace{.25cm}\result{The teacher is the best allocation found within a fixed search budget.}
+\end{frame}
+\begin{frame}{Training and later use have different workflows}
+\small
+\centering\begin{tikzpicture}[node distance=.65cm]
+\node[box] (a) {Packing and thermal baseline};\node[box,right=of a] (b) {Repeated swap search};\node[box,right=of b] (c) {\mbox{Train particle}\\ranking};
+\draw[arr](a)--(b);\draw[arr](b)--(c);
+\node[anchor=east,tumblue] at (-1.7,0) {Training};
+\node[box,below=1.3cm of a] (d) {New packing and baseline};\node[box,right=of d] (e) {GNN scores and exact quotas};\node[box,right=of e] (f) {Thermal verification};
+\draw[arr](d)--(e);\draw[arr](e)--(f);
+\node[anchor=east,tumblue] at (-1.7,-2.2) {Later use};
+\end{tikzpicture}\par\vspace{.4cm}\result{The learned ranking replaces repeated candidate search at prediction time.}
+\end{frame}
+\begin{frame}{The GNN combines local geometry with baseline physics}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Eight particle features}\begin{itemize}\item Diameter, height and contact degree\item Hot-wall, cold-wall and anchored flags\item Homogeneous temperature\item Homogeneous heat throughput\end{itemize}\column{.48\textwidth}\hi{Six contact features}\begin{itemize}\item Contact radius\item Relative displacement in $x,y,z$\item Absolute vertical alignment\item Homogeneous absolute contact heat rate\end{itemize}\end{columns}\vspace{.3cm}\small Three message-passing layers, width 64. The MLP receives the same particle features, without neighbour messages.
+\end{frame}
+\begin{frame}{Scores become a feasible allocation}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Supervised ranking}\begin{itemize}\item Search restart selections provide soft particle targets\item Listwise ranking within each size class\item Additional binary cross-entropy term\item Validation controls early stopping\end{itemize}\column{.48\textwidth}\hi{Selection at prediction time}\begin{itemize}\item Train three repeats per model\item Average within-class ranks\item Select the top 10 / 30 / 10 particles\item Verify conductivity with the thermal solver\end{itemize}\end{columns}
+\end{frame}
+\begin{frame}{Each test packing is withheld from model fitting}
+\small
+\centering\begin{tikzpicture}
+\node[box,text width=3.4cm] (a) at (0,0) {28 training packings\\weights and scalers};
+\node[box,text width=3.4cm] (b) at (4.4,0) {1 validation packing\\early stopping};
+\node[box,text width=3.4cm] (c) at (8.8,0) {1 test packing\\reported allocation};
+\end{tikzpicture}\par\vspace{.5cm}\begin{itemize}\item Repeat for all 30 test packings\item Up to 400 epochs and patience 60\item Compare methods on the same held-out geometries\end{itemize}\vspace{.2cm}\result{This tests transfer between realizations of the specified packing.}
+\end{frame}
+\begin{frame}{Gain and recovery answer different questions}
+\small
+\[\mathrm{Gain}_m=100\frac{k_m-k_{\rm random}}{k_{\rm random}}\]
+\[\mathrm{Recovery}_m=100\frac{k_m-k_{\rm random}}{k_{\rm search}-k_{\rm random}}\]
+\vspace{.2cm}\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Gain}\\How much better is this allocation than random?\column{.48\textwidth}\hi{Recovery}\\How much of the search improvement does the model obtain?\end{columns}\vspace{.4cm}\small Compute both per packing, then average. Error bars describe sample SD across packings.
+\end{frame}
+\begin{frame}{GNN improves conductivity by 30\% over random}
+\small
+\begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/02_allocation_gain.pdf}\column{.36\textwidth}\hi{Mean improvement}\par\vspace{.2cm}\begin{tabular}{lr}Degree&0.6\%\\Heat path&6.7\%\\MLP&17.9\%\\GNN&\textbf{30.0\%}\\Search&51.8\%\end{tabular}\vspace{.4cm}\par Same geometry and material budget for every comparison.\end{columns}
+\end{frame}
+\begin{frame}{Absolute conductivity remains below the search reference}
+\small
+\begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/01_conductivity.pdf}\column{.36\textwidth}\hi{Mean $k_{\rm eff}$ [W/(m K)]}\par\vspace{.2cm}\begin{tabular}{lr}Random&0.2284\\MLP&0.2692\\GNN&0.2970\\Search&0.3467\end{tabular}\vspace{.4cm}\par\small Grey lines connect results on the same packing.\end{columns}
+\end{frame}
+\begin{frame}{GNN beats MLP on 29 of 30 held-out packings}
+\small
+\begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/03_ml_recovery.pdf}\column{.36\textwidth}\hi{Recovered search improvement}\par\vspace{.2cm}GNN: \textbf{58.0\%}\\SD: 9.8 percentage points\\[.35cm]MLP: 34.5\% mean\\[.35cm]\small Improvement is consistent, but performance varies between packings.\end{columns}
+\end{frame}
+\begin{frame}{Contact-network diagnostics help interpret allocation}
+\small
+\begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/04_mechanisms.pdf}\column{.36\textwidth}\hi{Two diagnostics}\begin{itemize}\item Fraction of absolute contact heat carried by high--high contacts\item Number of high-conductivity clusters spanning both walls\end{itemize}\small These describe the selected network. They do not prove causality.\end{columns}
+\end{frame}
+\begin{frame}{Numerical checks pass, but contact sizes need scrutiny}
+\small
+\begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/05_contact_geometry.pdf}\column{.36\textwidth}\hi{Recorded checks}\begin{itemize}\item Maximum final KE: $8.4\times10^{-13}$ J\item Maximum energy imbalance: $9.01\times10^{-12}$\end{itemize}\hi{Contact radius / smaller radius}\par Median: 0.192\\95th percentile: 0.258\\Maximum: 0.347\end{columns}
+\end{frame}
+\begin{frame}{The numerical overlap floor has little influence}
+\small
+\begin{columns}[T,onlytextwidth]\column{.60\textwidth}\includegraphics[width=\linewidth,height=.69\textheight,keepaspectratio]{figures/06_floor_sensitivity.pdf}\column{.36\textwidth}\hi{Fixed allocations}\begin{itemize}\item Vary the numerical overlap floor\item Largest absolute conductivity change: 0.000923\%\item Sensitivity is negligible over the tested range\end{itemize}\small This does not test stiffness, loading or alternative contact laws.\end{columns}
+\end{frame}
+\begin{frame}{Fast scoring still requires two thermal solves}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Recorded computational work}\begin{itemize}\item Search: about 14,964 thermal solves per packing\item GNN ensemble scoring: 8.63 ms mean\item MLP ensemble scoring: 0.295 ms mean\end{itemize}\column{.48\textwidth}\hi{Complete prediction procedure}\begin{itemize}\item Homogeneous thermal baseline\item Feature construction and model scoring\item Quota selection\item Thermal verification\end{itemize}\end{columns}\vspace{.35cm}\result{The campaign demonstrates fewer candidate evaluations, not a measured end-to-end speedup.}
+\end{frame}
+\begin{frame}{Conclusions and next research steps}
+\small
+\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{What the campaign establishes}\begin{itemize}\item Material placement strongly affects modelled conductivity\item GNN gains 30\% over random allocation\item Neighbour information improves on the MLP\item 58\% of best-found search gain is recovered\end{itemize}\column{.48\textwidth}\hi{What remains to establish}\begin{itemize}\item Physical sensitivity of contact areas\item Transfer to other packing specifications\item GNN-initialized search versus random starts\item Complete runtime and manufacturing feasibility\end{itemize}\end{columns}\vspace{.35cm}\result{A learned particle ranking captures useful thermal-network structure.}
+\end{frame}
+\end{document}
