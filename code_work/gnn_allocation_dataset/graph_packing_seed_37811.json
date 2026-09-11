@@ -1,0 +1,58 @@
+{
+  "case": "packing_seed_37811",
+  "seed": 37811,
+  "case_directory": "/home/khalifa/Projects/packedBed_conduc/packing_seed_37811",
+  "allocation_directory": "/home/khalifa/Projects/packedBed_conduc/packing_seed_37811/allocation_stratified_p3000",
+  "particles": 500,
+  "undirected_contact_edges": 1341,
+  "directed_graph_edges": 2682,
+  "node_feature_names": [
+    "diameter_over_dref",
+    "z_normalized",
+    "contact_degree",
+    "hot_wall_contact",
+    "cold_wall_contact",
+    "thermally_anchored",
+    "baseline_temperature_normalized",
+    "baseline_heat_score_normalized"
+  ],
+  "edge_feature_names": [
+    "contact_radius_over_dref",
+    "dx_over_dref",
+    "dy_over_dref",
+    "dz_over_dref",
+    "absolute_vertical_alignment",
+    "baseline_absolute_heat_rate_normalized"
+  ],
+  "target_names": [
+    "target_selection_frequency",
+    "target_best_selection"
+  ],
+  "type_quotas": {
+    "1": 10,
+    "2": 30,
+    "3": 10
+  },
+  "soft_target_sum_by_type": {
+    "1": 10.0,
+    "2": 30.0,
+    "3": 9.999999046325684
+  },
+  "optimizer_restart_files": [
+    "high_ids_optimized_restart_1.txt",
+    "high_ids_optimized_restart_2.txt",
+    "high_ids_optimized_restart_3.txt",
+    "high_ids_optimized_restart_4.txt",
+    "high_ids_optimized_restart_5.txt"
+  ],
+  "homogeneous_k_eff_W_mK": 0.095574615678913,
+  "teacher_best_k_eff_W_mK": 0.18101715679338773,
+  "random_mean_k_eff_W_mK": 0.11316568628849416,
+  "heat_path_k_eff_W_mK": 0.12509606566159645,
+  "k_low_W_mK": 1.0,
+  "k_high_W_mK": 10.0,
+  "temperature_hot_K": 301.0,
+  "temperature_cold_K": 300.0,
+  "contact_only": true,
+  "normalization_note": "Only dimensionless geometry and within-graph baseline heat quantities are formed here. Fit any dataset-wide feature scaler on training packings only inside each cross-validation fold."
+}

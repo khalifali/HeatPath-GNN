@@ -1,0 +1,48 @@
+{
+  "case": "/home/khalifa/Projects/packedBed_conduc/packing_seed_55291",
+  "particles": 500,
+  "high_count": 50,
+  "high_fraction": 0.1,
+  "type_quotas": {
+    "1": 10,
+    "2": 30,
+    "3": 10
+  },
+  "available_particles_by_type": {
+    "1": 100,
+    "2": 300,
+    "3": 100
+  },
+  "fixed_high_particle_volume_m3": 2.2514747350726852e-07,
+  "fixed_high_particle_volume_verified": true,
+  "k_low_W_mK": 1.0,
+  "k_high_W_mK": 10.0,
+  "contact_only": true,
+  "random_samples": 100,
+  "swap_proposals": 3000,
+  "optimizer_restarts": 5,
+  "seed": 12345,
+  "homogeneous_k_eff_W_mK": 0.09545881369324036,
+  "random_mean_k_eff_W_mK": 0.11329851166994748,
+  "random_std_k_eff_W_mK": 0.0020979851116337224,
+  "random_cv_percent": 1.8517322784834203,
+  "random_min_k_eff_W_mK": 0.10646348112780589,
+  "random_max_k_eff_W_mK": 0.11963625914177836,
+  "degree_k_eff_W_mK": 0.11439598426869199,
+  "heat_path_k_eff_W_mK": 0.12601608422575022,
+  "optimized_best_restart": 3,
+  "optimized_best_k_eff_W_mK": 0.18219071624693065,
+  "optimized_mean_k_eff_W_mK": 0.1759725216055266,
+  "optimized_std_k_eff_W_mK": 0.005764264536526481,
+  "optimized_improvement_vs_random_mean_percent": 60.80592195039123,
+  "optimized_improvement_vs_homogeneous_percent": 90.8579304498857,
+  "accepted_swaps_by_restart": {
+    "1": 85,
+    "2": 100,
+    "3": 79,
+    "4": 77,
+    "5": 77
+  },
+  "unique_thermal_evaluations": 14775,
+  "maximum_energy_balance_error": 7.14015372705418e-12
+}

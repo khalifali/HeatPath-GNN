@@ -1,0 +1,18 @@
+{
+  "case": "/home/khalifa/Projects/packedBed_conduc/packing_seed_18427",
+  "allocation_directory": "/home/khalifa/Projects/packedBed_conduc/packing_seed_18427/allocation_stratified_p3000",
+  "representative_random_replicate": 24,
+  "representative_random_k_eff_W_mK": 0.11123466854190647,
+  "recorded_random_mean_k_eff_W_mK": 0.11123105321461323,
+  "absolute_difference_from_random_mean_W_mK": 3.6153272932465397e-06,
+  "methods": [
+    "random_near_mean",
+    "heat_path",
+    "swap_optimized"
+  ],
+  "notes": {
+    "vertical_alignment": "absolute contact direction cosine |dz|/distance",
+    "minimum_resistance_path": "shortest series-resistance path; descriptive, not total network resistance",
+    "heat_fraction_denominator": "sum of absolute heat rates over all particle-particle contacts"
+  }
+}

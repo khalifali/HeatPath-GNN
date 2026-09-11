@@ -1,0 +1,46 @@
+{
+  "dataset": "/home/khalifa/Projects/packedBed_conduc/gnn_allocation_dataset",
+  "device": "cpu",
+  "graphs": 10,
+  "split": "leave-one-packing-out with one separate validation packing",
+  "training_graphs_per_fold": 8,
+  "repeats": 3,
+  "ensemble_method": "mean of within-particle-type normalized ranks",
+  "models": [
+    "mlp",
+    "gnn"
+  ],
+  "model_summary_ensemble": {
+    "gnn": {
+      "folds": 10,
+      "mean_effective_conductivity_W_mK": 0.1418947482085822,
+      "std_effective_conductivity_W_mK": 0.0073062345216076225,
+      "mean_recovered_optimizer_gain_fraction": 0.5072434167145351,
+      "std_recovered_optimizer_gain_fraction": 0.07672891991747442,
+      "min_recovered_optimizer_gain_fraction": 0.4185704419328681,
+      "max_recovered_optimizer_gain_fraction": 0.6901555137444388,
+      "folds_outperforming_heat_path": 10,
+      "mean_jaccard_with_teacher_best": 0.2537971510480255
+    },
+    "mlp": {
+      "folds": 10,
+      "mean_effective_conductivity_W_mK": 0.13137306489628414,
+      "std_effective_conductivity_W_mK": 0.005830535032544207,
+      "mean_recovered_optimizer_gain_fraction": 0.33606408542386107,
+      "std_recovered_optimizer_gain_fraction": 0.04285232549787627,
+      "min_recovered_optimizer_gain_fraction": 0.27522967900737494,
+      "max_recovered_optimizer_gain_fraction": 0.41505441386361436,
+      "folds_outperforming_heat_path": 10,
+      "mean_jaccard_with_teacher_best": 0.23038463463423567
+    }
+  },
+  "decision_guidance": {
+    "retain_gnn_if": [
+      "GNN outperforms heat-path ranking on most held-out packings",
+      "GNN clearly outperforms the same-feature non-graph MLP",
+      "GNN recovers approximately 0.8 or more of the optimizer gain",
+      "Inference plus one thermal verification is much cheaper than swap search"
+    ],
+    "warning": "Ten graphs constitute a proof of concept. Expand the packing ensemble only if the held-out result is promising."
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "case_directory": "/home/khalifa/Projects/packedBed_conduc/packing_seed_99223",
+  "particles": 500,
+  "thermally_solved_particles": 493,
+  "thermally_unanchored_particles": 7,
+  "high_conductivity_particles": 0,
+  "contact_edges": 1332,
+  "fluid_gap_edges": 0,
+  "hot_wall_links": 48,
+  "cold_wall_links": 40,
+  "hot_wall_contact_links": 48,
+  "cold_wall_contact_links": 40,
+  "hot_wall_fluid_links": 0,
+  "cold_wall_fluid_links": 0,
+  "box_height_m": 0.0153706345204829,
+  "cross_section_area_m2": 0.00023625640556226057,
+  "reference_diameter_m": 0.002,
+  "temperature_hot_K": 301.0,
+  "temperature_cold_K": 300.0,
+  "conductivity_low_W_mK": 1.0,
+  "conductivity_high_W_mK": 10.0,
+  "conductivity_fluid_W_mK": 0.0,
+  "heat_rate_hot_W": 0.0013911204805909425,
+  "heat_rate_cold_W": 0.0013911204805925846,
+  "relative_energy_balance_error": 1.180438814147165e-12,
+  "effective_conductivity_W_mK": 0.09050507828659488,
+  "temperature_min_K": 300.03405639332345,
+  "temperature_max_K": 300.97286692618684,
+  "matrix_size": [
+    493,
+    493
+  ],
+  "matrix_nonzeros": 3157,
+  "model_parameters": {
+    "overlap_floor_ratio": 1e-08,
+    "gap_cutoff_ratio": 0.1,
+    "gap_regularization_ratio": 0.001,
+    "wall_tolerance_ratio": 1e-08,
+    "wall_conductivity_W_mK": "infinite"
+  },
+  "graph_diagnostics": {
+    "component_count": 8,
+    "largest_component_size": 493,
+    "spanning_component_count": 1,
+    "spanning_component_sizes": [
+      493
+    ],
+    "unanchored_component_count": 7,
+    "unanchored_component_sizes": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  }
+}

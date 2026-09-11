@@ -1,0 +1,244 @@
+# ============================================================
+# Equal-porosity / equal-PSD granular packing generator
+# Target: LAMMPS stable_22Jul2025_update5 with GRANULAR package
+#
+# Purpose
+#   Generate independent contact-network realizations while keeping:
+#     (1) particle counts in every PSD bin exactly identical, and
+#     (2) nominal global porosity exactly identical by construction.
+#
+# Method
+#   Particle centers are initialized randomly at very small diameter.
+#   The three exact PSD bins are then expanded quasistatically inside a
+#   fixed-volume cell.  Since both total solid volume and cell volume are
+#   prescribed, the final nominal porosity is independent of random seed.
+#
+# Important
+#   This file generates the mechanical packing only.  Heat conduction and
+#   graph learning are deliberately left for the later Python workflow.
+# ============================================================
+
+clear
+units                   si
+dimension               3
+boundary                p p f
+# The trailing 1 declares dynamically changing radii.  This is required
+# because fix adapt expands the particle diameters during packing generation.
+atom_style              sphere 1
+atom_modify             map array sort 0 0.0
+newton                  off
+comm_modify             vel yes
+
+# ------------------------------------------------------------
+# 1) Case control: override seed_realization for a new topology, e.g.
+#    lmp -var seed_realization 18427 -in in.generate_equal_porosity_psd.lammps
+# ------------------------------------------------------------
+variable seed_realization index 18427
+variable outdir          string packing_seed_${seed_realization}
+shell mkdir -p ${outdir}
+
+# Exact number-based PSD.  Keep N1/N2/N3 and d1/d2/d3 unchanged
+# when producing equal-PSD counterfactual realizations.
+# Pilot size: 500 particles.  The final scale study can later add N=1000.
+variable N1              index 100
+variable N2              index 300
+variable N3              index 100
+variable Ntot            equal v_N1+v_N2+v_N3
+
+variable d1              equal 1.50e-3       # [m]
+variable d2              equal 2.00e-3       # [m]
+variable d3              equal 2.50e-3       # [m]
+variable density         equal 2500.0         # [kg/m^3]
+
+# Target nominal porosity.  A cubic RVE is computed from the exact solid
+# volume, so its aspect ratio remains one when particle count is changed.
+variable porosityTarget  equal 0.38
+variable packingTarget   equal 1.0-v_porosityTarget
+
+variable pi              equal 3.141592653589793
+variable V1              equal v_N1*v_pi*v_d1^3/6.0
+variable V2              equal v_N2*v_pi*v_d2^3/6.0
+variable V3              equal v_N3*v_pi*v_d3^3/6.0
+variable VsolidTarget    equal v_V1+v_V2+v_V3
+
+# This is the key equality constraint:
+# phi_s = Vsolid/L^3 = 1-porosityTarget.
+variable cellSide        equal (v_VsolidTarget/v_packingTarget)^(1.0/3.0)
+variable Lx              equal v_cellSide
+variable Ly              equal v_cellSide
+variable H               equal v_cellSide
+variable rmax            equal 0.5*v_d3
+variable zinsertLo       equal v_rmax
+variable zinsertHi       equal v_H-v_rmax
+
+print "Target particle count = ${Ntot}"
+print "Target nominal porosity = ${porosityTarget}"
+print "Computed cubic cell side [m] = ${cellSide}"
+
+# ------------------------------------------------------------
+# 2) Create the fixed-volume cell and random point centers
+# ------------------------------------------------------------
+region simulationBox block 0.0 ${Lx} 0.0 ${Ly} 0.0 ${H} units box
+create_box 3 simulationBox
+
+# Centers are kept one final maximum radius away from the z walls.
+# Overlap is intentionally allowed here because all spheres are immediately
+# reduced to 5% diameter before any force evaluation, then grown slowly.
+region centerRegion block 0.0 ${Lx} 0.0 ${Ly} ${zinsertLo} ${zinsertHi} units box
+create_atoms 1 random ${Ntot} ${seed_realization} centerRegion remap yes
+
+# create_atoms assigns consecutive IDs.  Exact ID ranges enforce exact bin
+# counts; no stochastic sampling of the PSD occurs.
+variable id1hi           equal v_N1
+variable id2lo           equal v_N1+1
+variable id2hi           equal v_N1+v_N2
+variable id3lo           equal v_N1+v_N2+1
+variable id3hi           equal v_Ntot
+
+group bin1 id 1:${id1hi}
+group bin2 id ${id2lo}:${id2hi}
+group bin3 id ${id3lo}:${id3hi}
+
+set group bin1 type 1
+set group bin2 type 2
+set group bin3 type 3
+
+# Start almost point-like so random-center initialization is benign.
+variable grow0           equal 0.05
+variable d1start         equal v_grow0*v_d1
+variable d2start         equal v_grow0*v_d2
+variable d3start         equal v_grow0*v_d3
+set group bin1 diameter ${d1start}
+set group bin2 diameter ${d2start}
+set group bin3 diameter ${d3start}
+set group all density ${density}
+
+# ------------------------------------------------------------
+# 3) Mechanical contact model and integration
+# ------------------------------------------------------------
+# A deliberately softened elastic modulus makes quasistatic generation
+# affordable.  It must be kept identical for all realizations.  If contact
+# areas from Hertz theory are later used for thermal conductance, report this
+# modulus and perform a sensitivity test.
+variable young           equal 5.0e7           # [Pa]
+variable poisson         equal 0.25
+variable restitution     equal 0.30
+variable friction        equal 0.50
+
+pair_style granular
+pair_coeff * * hertz/material ${young} ${poisson} ${restitution} &
+               tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
+
+# Same mechanical law at the cold/hot z boundaries.  Thermal boundary
+# conditions are not activated in this packing-only script.
+fix zwalls all wall/gran granular hertz/material ${young} ${poisson} ${restitution} &
+               tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji &
+               zplane 0.0 ${H}
+
+neighbor                2.5e-4 bin
+neigh_modify            delay 0 every 1 check yes
+timestep                2.0e-7
+
+fix integrate all nve/sphere
+# During diameter growth, mass scales with d^3.  At grow0=0.05 the smallest
+# particles initially have only 0.05^3 of their final mass.  A large global
+# viscous coefficient therefore makes explicit velocity integration unstable.
+# Use weak damping during growth; Tsuji contact damping provides additional
+# dissipation whenever particles touch.
+fix damping   all viscous 1.0e-3
+
+# ------------------------------------------------------------
+# 4) Quasistatic diameter expansion to the prescribed PSD
+# ------------------------------------------------------------
+variable nGrow           index 300000
+variable dgrow1          equal ramp(v_d1start,v_d1)
+variable dgrow2          equal ramp(v_d2start,v_d2)
+variable dgrow3          equal ramp(v_d3start,v_d3)
+
+fix grow1 bin1 adapt 1 atom diameter v_dgrow1
+fix grow2 bin2 adapt 1 atom diameter v_dgrow2
+fix grow3 bin3 adapt 1 atom diameter v_dgrow3
+
+# Online checks: actual sphere volume is computed from current radii.
+variable sphereVolume atom 4.0*v_pi*radius^3/3.0
+compute solidVolume all reduce sum v_sphereVolume
+variable packingNow equal c_solidVolume/vol
+variable porosityNow equal 1.0-v_packingNow
+
+thermo                  5000
+thermo_style            custom step time atoms ke press vol c_solidVolume &
+                        v_packingNow v_porosityNow
+thermo_modify           lost error flush yes
+
+dump growth all custom 25000 ${outdir}/growth_*.dump &
+     id type x y z vx vy vz omegax omegay omegaz radius mass fx fy fz
+dump_modify growth sort id format line &
+     "%d %d %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e"
+
+run ${nGrow}
+
+unfix grow1
+unfix grow2
+unfix grow3
+
+# Final particle masses are now restored, so stronger damping is stable and
+# accelerates the final mechanical relaxation.
+unfix damping
+fix dampingFinal all viscous 0.10
+
+# Remove any accumulated center-of-mass drift and relax at final size.
+velocity all zero linear
+velocity all zero angular
+reset_timestep 0
+
+variable nRelax          index 200000
+run ${nRelax}
+
+# ------------------------------------------------------------
+# 5) Final diagnostics and graph-ready output
+# ------------------------------------------------------------
+undump growth
+
+# Particle table: the graph nodes.
+write_dump all custom ${outdir}/particles_final.dump &
+     id type x y z radius mass fx fy fz modify sort id
+
+# Interacting pairs: the graph edges.  Values returned by computes are
+# stored as floating point, including atom IDs and types; %.0f is therefore
+# required for those four integer-valued compute columns.  cutoff radius
+# ensures the ID and
+# pair/local computes use the same sphere-contact criterion.
+compute pairIDs   all property/local patom1 patom2 ptype1 ptype2 cutoff radius
+compute pairState all pair/local dist dx dy dz force fx fy fz p1 p2 p3 p4 cutoff radius
+
+dump contacts all local 1 ${outdir}/contacts_final.dump &
+     index c_pairIDs[1] c_pairIDs[2] c_pairIDs[3] c_pairIDs[4] &
+     c_pairState[1] c_pairState[2] c_pairState[3] c_pairState[4] &
+     c_pairState[5] c_pairState[6] c_pairState[7] c_pairState[8] &
+     c_pairState[9] c_pairState[10] c_pairState[11] c_pairState[12]
+dump_modify contacts format line &
+     "%d %.0f %.0f %.0f %.0f %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e"
+dump_modify contacts first yes
+
+# One step initializes and writes the local contact dump.
+run 1
+undump contacts
+
+write_data    ${outdir}/packing_final.data
+write_restart ${outdir}/packing_final.restart
+
+variable finalAtoms    equal atoms
+variable finalN1       equal count(bin1)
+variable finalN2       equal count(bin2)
+variable finalN3       equal count(bin3)
+variable finalSolidVol equal c_solidVolume
+variable finalPacking  equal v_packingNow
+variable finalPorosity equal v_porosityNow
+variable finalPressure equal press
+variable finalKE       equal ke
+
+print "seed N1 N2 N3 d1_m d2_m d3_m Vsolid_m3 cellVolume_m3 packingFraction porosity pressure_Pa kineticEnergy_J" file ${outdir}/packing_summary.dat
+print "${seed_realization} ${finalN1} ${finalN2} ${finalN3} ${d1} ${d2} ${d3} ${finalSolidVol} $(vol) ${finalPacking} ${finalPorosity} ${finalPressure} ${finalKE}" append ${outdir}/packing_summary.dat
+
+print "Packing generation completed: ${outdir}"
+print "For another equal-PSD/equal-porosity realization, change only seed_realization."

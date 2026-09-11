@@ -1,0 +1,531 @@
+LAMMPS (22 Jul 2025 - Update 5)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# ============================================================
+# Equal-porosity / equal-PSD granular packing generator
+# Target: LAMMPS stable_22Jul2025_update5 with GRANULAR package
+#
+# Purpose
+#   Generate independent contact-network realizations while keeping:
+#     (1) particle counts in every PSD bin exactly identical, and
+#     (2) nominal global porosity exactly identical by construction.
+#
+# Method
+#   Particle centers are initialized randomly at very small diameter.
+#   The three exact PSD bins are then expanded quasistatically inside a
+#   fixed-volume cell.  Since both total solid volume and cell volume are
+#   prescribed, the final nominal porosity is independent of random seed.
+#
+# Important
+#   This file generates the mechanical packing only.  Heat conduction and
+#   graph learning are deliberately left for the later Python workflow.
+# ============================================================
+
+clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+units                   si
+dimension               3
+boundary                p p f
+# The trailing 1 declares dynamically changing radii.  This is required
+# because fix adapt expands the particle diameters during packing generation.
+atom_style              sphere 1
+atom_modify             map array sort 0 0.0
+newton                  off
+comm_modify             vel yes
+
+# ------------------------------------------------------------
+# 1) Case control: override seed_realization for a new topology, e.g.
+#    lmp -var seed_realization 18427 -in in.generate_equal_porosity_psd.lammps
+# ------------------------------------------------------------
+variable seed_realization index 18427
+variable outdir          string packing_seed_${seed_realization}
+variable outdir          string packing_seed_99223
+shell mkdir -p ${outdir}
+shell mkdir -p packing_seed_99223
+
+# Exact number-based PSD.  Keep N1/N2/N3 and d1/d2/d3 unchanged
+# when producing equal-PSD counterfactual realizations.
+# Pilot size: 500 particles.  The final scale study can later add N=1000.
+variable N1              index 100
+variable N2              index 300
+variable N3              index 100
+variable Ntot            equal v_N1+v_N2+v_N3
+
+variable d1              equal 1.50e-3       # [m]
+variable d2              equal 2.00e-3       # [m]
+variable d3              equal 2.50e-3       # [m]
+variable density         equal 2500.0         # [kg/m^3]
+
+# Target nominal porosity.  A cubic RVE is computed from the exact solid
+# volume, so its aspect ratio remains one when particle count is changed.
+variable porosityTarget  equal 0.38
+variable packingTarget   equal 1.0-v_porosityTarget
+
+variable pi              equal 3.141592653589793
+variable V1              equal v_N1*v_pi*v_d1^3/6.0
+variable V2              equal v_N2*v_pi*v_d2^3/6.0
+variable V3              equal v_N3*v_pi*v_d3^3/6.0
+variable VsolidTarget    equal v_V1+v_V2+v_V3
+
+# This is the key equality constraint:
+# phi_s = Vsolid/L^3 = 1-porosityTarget.
+variable cellSide        equal (v_VsolidTarget/v_packingTarget)^(1.0/3.0)
+variable Lx              equal v_cellSide
+variable Ly              equal v_cellSide
+variable H               equal v_cellSide
+variable rmax            equal 0.5*v_d3
+variable zinsertLo       equal v_rmax
+variable zinsertHi       equal v_H-v_rmax
+
+print "Target particle count = ${Ntot}"
+Target particle count = 500
+print "Target nominal porosity = ${porosityTarget}"
+Target nominal porosity = 0.38
+print "Computed cubic cell side [m] = ${cellSide}"
+Computed cubic cell side [m] = 0.0153706345204829
+
+# ------------------------------------------------------------
+# 2) Create the fixed-volume cell and random point centers
+# ------------------------------------------------------------
+region simulationBox block 0.0 ${Lx} 0.0 ${Ly} 0.0 ${H} units box
+region simulationBox block 0.0 0.0153706345204829 0.0 ${Ly} 0.0 ${H} units box
+region simulationBox block 0.0 0.0153706345204829 0.0 0.0153706345204829 0.0 ${H} units box
+region simulationBox block 0.0 0.0153706345204829 0.0 0.0153706345204829 0.0 0.0153706345204829 units box
+create_box 3 simulationBox
+Created orthogonal box = (0 0 0) to (0.015370635 0.015370635 0.015370635)
+  2 by 2 by 2 MPI processor grid
+
+# Centers are kept one final maximum radius away from the z walls.
+# Overlap is intentionally allowed here because all spheres are immediately
+# reduced to 5% diameter before any force evaluation, then grown slowly.
+region centerRegion block 0.0 ${Lx} 0.0 ${Ly} ${zinsertLo} ${zinsertHi} units box
+region centerRegion block 0.0 0.0153706345204829 0.0 ${Ly} ${zinsertLo} ${zinsertHi} units box
+region centerRegion block 0.0 0.0153706345204829 0.0 0.0153706345204829 ${zinsertLo} ${zinsertHi} units box
+region centerRegion block 0.0 0.0153706345204829 0.0 0.0153706345204829 0.00125 ${zinsertHi} units box
+region centerRegion block 0.0 0.0153706345204829 0.0 0.0153706345204829 0.00125 0.0141206345204829 units box
+create_atoms 1 random ${Ntot} ${seed_realization} centerRegion remap yes
+create_atoms 1 random 500 ${seed_realization} centerRegion remap yes
+create_atoms 1 random 500 99223 centerRegion remap yes
+Created 500 atoms
+  using lattice units in orthogonal box = (0 0 0) to (0.015370635 0.015370635 0.015370635)
+  create_atoms CPU = 0.001 seconds
+
+# create_atoms assigns consecutive IDs.  Exact ID ranges enforce exact bin
+# counts; no stochastic sampling of the PSD occurs.
+variable id1hi           equal v_N1
+variable id2lo           equal v_N1+1
+variable id2hi           equal v_N1+v_N2
+variable id3lo           equal v_N1+v_N2+1
+variable id3hi           equal v_Ntot
+
+group bin1 id 1:${id1hi}
+group bin1 id 1:100
+100 atoms in group bin1
+group bin2 id ${id2lo}:${id2hi}
+group bin2 id 101:${id2hi}
+group bin2 id 101:400
+300 atoms in group bin2
+group bin3 id ${id3lo}:${id3hi}
+group bin3 id 401:${id3hi}
+group bin3 id 401:500
+100 atoms in group bin3
+
+set group bin1 type 1
+Setting atom values ...
+  100 settings made for type
+set group bin2 type 2
+Setting atom values ...
+  300 settings made for type
+set group bin3 type 3
+Setting atom values ...
+  100 settings made for type
+
+# Start almost point-like so random-center initialization is benign.
+variable grow0           equal 0.05
+variable d1start         equal v_grow0*v_d1
+variable d2start         equal v_grow0*v_d2
+variable d3start         equal v_grow0*v_d3
+set group bin1 diameter ${d1start}
+set group bin1 diameter 7.5e-05
+Setting atom values ...
+  100 settings made for diameter
+set group bin2 diameter ${d2start}
+set group bin2 diameter 0.0001
+Setting atom values ...
+  300 settings made for diameter
+set group bin3 diameter ${d3start}
+set group bin3 diameter 0.000125
+Setting atom values ...
+  100 settings made for diameter
+set group all density ${density}
+set group all density 2500
+Setting atom values ...
+  500 settings made for density
+
+# ------------------------------------------------------------
+# 3) Mechanical contact model and integration
+# ------------------------------------------------------------
+# A deliberately softened elastic modulus makes quasistatic generation
+# affordable.  It must be kept identical for all realizations.  If contact
+# areas from Hertz theory are later used for thermal conductance, report this
+# modulus and perform a sensitivity test.
+variable young           equal 5.0e7           # [Pa]
+variable poisson         equal 0.25
+variable restitution     equal 0.30
+variable friction        equal 0.50
+
+pair_style granular
+pair_coeff * * hertz/material ${young} ${poisson} ${restitution}                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
+pair_coeff * * hertz/material 50000000 ${poisson} ${restitution}                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
+pair_coeff * * hertz/material 50000000 0.25 ${restitution}                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
+pair_coeff * * hertz/material 50000000 0.25 0.3                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
+pair_coeff * * hertz/material 50000000 0.25 0.3                tangential mindlin_rescale NULL 1.0 0.5 damping tsuji
+
+# Same mechanical law at the cold/hot z boundaries.  Thermal boundary
+# conditions are not activated in this packing-only script.
+fix zwalls all wall/gran granular hertz/material ${young} ${poisson} ${restitution}                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji                zplane 0.0 ${H}
+fix zwalls all wall/gran granular hertz/material 50000000 ${poisson} ${restitution}                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji                zplane 0.0 ${H}
+fix zwalls all wall/gran granular hertz/material 50000000 0.25 ${restitution}                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji                zplane 0.0 ${H}
+fix zwalls all wall/gran granular hertz/material 50000000 0.25 0.3                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji                zplane 0.0 ${H}
+fix zwalls all wall/gran granular hertz/material 50000000 0.25 0.3                tangential mindlin_rescale NULL 1.0 0.5 damping tsuji                zplane 0.0 ${H}
+fix zwalls all wall/gran granular hertz/material 50000000 0.25 0.3                tangential mindlin_rescale NULL 1.0 0.5 damping tsuji                zplane 0.0 0.0153706345204829
+
+neighbor                2.5e-4 bin
+neigh_modify            delay 0 every 1 check yes
+timestep                2.0e-7
+
+fix integrate all nve/sphere
+# During diameter growth, mass scales with d^3.  At grow0=0.05 the smallest
+# particles initially have only 0.05^3 of their final mass.  A large global
+# viscous coefficient therefore makes explicit velocity integration unstable.
+# Use weak damping during growth; Tsuji contact damping provides additional
+# dissipation whenever particles touch.
+fix damping   all viscous 1.0e-3
+
+# ------------------------------------------------------------
+# 4) Quasistatic diameter expansion to the prescribed PSD
+# ------------------------------------------------------------
+variable nGrow           index 300000
+variable dgrow1          equal ramp(v_d1start,v_d1)
+variable dgrow2          equal ramp(v_d2start,v_d2)
+variable dgrow3          equal ramp(v_d3start,v_d3)
+
+fix grow1 bin1 adapt 1 atom diameter v_dgrow1
+fix grow2 bin2 adapt 1 atom diameter v_dgrow2
+fix grow3 bin3 adapt 1 atom diameter v_dgrow3
+
+# Online checks: actual sphere volume is computed from current radii.
+variable sphereVolume atom 4.0*v_pi*radius^3/3.0
+compute solidVolume all reduce sum v_sphereVolume
+variable packingNow equal c_solidVolume/vol
+variable porosityNow equal 1.0-v_packingNow
+
+thermo                  5000
+thermo_style            custom step time atoms ke press vol c_solidVolume                         v_packingNow v_porosityNow
+thermo_modify           lost error flush yes
+
+dump growth all custom 25000 ${outdir}/growth_*.dump      id type x y z vx vy vz omegax omegay omegaz radius mass fx fy fz
+dump growth all custom 25000 packing_seed_99223/growth_*.dump      id type x y z vx vy vz omegax omegay omegaz radius mass fx fy fz
+dump_modify growth sort id format line      "%d %d %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e"
+
+run ${nGrow}
+run 300000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 0.000375
+  ghost atom cutoff = 0.000375
+  binsize = 0.0001875, bins = 82 82 82
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair granular, perpetual
+      attributes: half, newton off, size, history
+      pair build: half/size/bin/atomonly/newtoff
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 12.28 | 12.28 | 12.28 Mbytes
+   Step          Time         Atoms        KinEng         Press          Volume     c_solidVolume   v_packingNow  v_porosityNow 
+         0   0                    500   0              0              3.6314109e-06  2.8143434e-10  7.75e-05       0.9999225    
+      5000   0.001                500   0              0              3.6314109e-06  6.4239864e-10  0.00017690057  0.9998231    
+     10000   0.002                500   0              0              3.6314109e-06  1.2263137e-09  0.0003376962   0.9996623    
+     15000   0.003                500   0              0              3.6314109e-06  2.0868005e-09  0.00057465281  0.99942535   
+     20000   0.004                500   1.4764028e-11  0.0010762941   3.6314109e-06  3.2774801e-09  0.0009025363   0.99909746   
+     25000   0.005                500   2.1856166e-11  0.0015027235   3.6314109e-06  4.8519737e-09  0.0013361126   0.99866389   
+     30000   0.006                500   7.0221396e-11  0.0025758345   3.6314109e-06  6.8639022e-09  0.0018901475   0.99810985   
+     35000   0.007                500   1.5089535e-10  0.0045324672   3.6314109e-06  9.3668867e-09  0.002579407    0.99742059   
+     40000   0.008                500   2.144342e-10   0.0055001528   3.6314109e-06  1.2414548e-08  0.003418657    0.99658134   
+     45000   0.009                500   2.875793e-10   0.0064306939   3.6314109e-06  1.6060508e-08  0.0044226634   0.99557734   
+     50000   0.01                 500   3.6452605e-10  0.0069694278   3.6314109e-06  2.0358387e-08  0.0056061921   0.99439381   
+     55000   0.011                500   9.8116409e-09  0.0057864882   3.6314109e-06  2.5361806e-08  0.006984009    0.99301599   
+     60000   0.012                500   2.9208375e-10  0.00716578     3.6314109e-06  3.1124387e-08  0.00857088     0.99142912   
+     65000   0.013                500   7.590387e-10   0.017188024    3.6314109e-06  3.769975e-08   0.010381571    0.98961843   
+     70000   0.014                500   9.7287417e-10  0.013379715    3.6314109e-06  4.5141516e-08  0.012430848    0.98756915   
+     75000   0.015                500   1.5659338e-09  0.017496716    3.6314109e-06  5.3503307e-08  0.014733477    0.98526652   
+     80000   0.016                500   2.0284016e-09  0.02075053     3.6314109e-06  6.2838743e-08  0.017304223    0.98269578   
+     85000   0.017                500   2.3507868e-09  0.02187073     3.6314109e-06  7.3201446e-08  0.020157853    0.97984215   
+     90000   0.018                500   2.7302935e-09  0.02347577     3.6314109e-06  8.4645037e-08  0.023309132    0.97669087   
+     95000   0.019                500   2.7431055e-05  5.0431062      3.6314109e-06  9.7223136e-08  0.026772827    0.97322717   
+    100000   0.02                 500   5.1152063e-05  9.3979989      3.6314109e-06  1.1098937e-07  0.030563704    0.9694363    
+    105000   0.021                500   6.0586145e-06  1.1148448      3.6314109e-06  1.2599735e-07  0.034696527    0.96530347   
+    110000   0.022                500   8.0675442e-05  14.812476      3.6314109e-06  1.423007e-07   0.039186064    0.96081394   
+    115000   0.023                500   4.2711191e-05  7.8436152      3.6314109e-06  1.5995304e-07  0.044047079    0.95595292   
+    120000   0.024                500   0.00024949537  45.804604      3.6314109e-06  1.79008e-07    0.04929434     0.95070566   
+    125000   0.025                500   0.0030292875   634.85439      3.6314109e-06  1.995192e-07   0.054942611    0.94505739   
+    130000   0.026                500   0.012221603    2241.8355      3.6314109e-06  2.2154025e-07  0.06100666     0.93899334   
+    135000   0.027                500   0.021709755    3985.5502      3.6314109e-06  2.4512477e-07  0.06750125     0.93249875   
+    140000   0.028                500   0.038090585    8197.7774      3.6314109e-06  2.703264e-07   0.07444115     0.92555885   
+    145000   0.029                500   0.05088743     9855.7847      3.6314109e-06  2.9719874e-07  0.081841123    0.91815888   
+    150000   0.03                 500   0.076118844    15571.512      3.6314109e-06  3.2579543e-07  0.089715937    0.91028406   
+    155000   0.031                500   0.093752508    19530.165      3.6314109e-06  3.5617008e-07  0.098080358    0.90191964   
+    160000   0.032                500   0.10989715     22653.634      3.6314109e-06  3.8837631e-07  0.10694915     0.89305085   
+    165000   0.033                500   0.13685323     25849.654      3.6314109e-06  4.2246774e-07  0.11633708     0.88366292   
+    170000   0.034                500   0.16407668     34645.59       3.6314109e-06  4.58498e-07    0.12625892     0.87374108   
+    175000   0.035                500   0.18747294     36946.464      3.6314109e-06  4.965207e-07   0.13672942     0.86327058   
+    180000   0.036                500   0.21613442     44441.998      3.6314109e-06  5.3658947e-07  0.14776336     0.85223664   
+    185000   0.037                500   0.24374297     48138.731      3.6314109e-06  5.7875793e-07  0.1593755      0.8406245    
+    190000   0.038                500   0.28112772     57490.033      3.6314109e-06  6.230797e-07   0.17158061     0.82841939   
+    195000   0.039                500   0.3014514      61367.808      3.6314109e-06  6.6960839e-07  0.18439345     0.81560655   
+    200000   0.04                 500   0.34365145     67518.504      3.6314109e-06  7.1839764e-07  0.1978288      0.8021712    
+    205000   0.041                500   0.37997164     73638.202      3.6314109e-06  7.6950106e-07  0.2119014      0.7880986    
+    210000   0.042                500   0.39053883     79095.314      3.6314109e-06  8.2297227e-07  0.22662604     0.77337396   
+    215000   0.043                500   0.42772566     86376.139      3.6314109e-06  8.788649e-07   0.24201748     0.75798252   
+    220000   0.044                500   0.49636504     95990.58       3.6314109e-06  9.3723256e-07  0.25809048     0.74190952   
+    225000   0.045                500   0.57249952     111860.32      3.6314109e-06  9.9812888e-07  0.2748598      0.7251402    
+    230000   0.046                500   0.63164422     122824.73      3.6314109e-06  1.0616075e-06  0.29234023     0.70765977   
+    235000   0.047                500   0.62559689     127650.07      3.6314109e-06  1.127722e-06   0.31054651     0.68945349   
+    240000   0.048                500   0.67259537     142942.33      3.6314109e-06  1.196526e-06   0.32949342     0.67050658   
+    245000   0.049                500   0.73575543     150476.98      3.6314109e-06  1.2680731e-06  0.34919572     0.65080428   
+    250000   0.05                 500   0.75158738     150442.86      3.6314109e-06  1.3424171e-06  0.36966818     0.63033182   
+    255000   0.051                500   0.86640245     162401.04      3.6314109e-06  1.4196114e-06  0.39092557     0.60907443   
+    260000   0.052                500   0.89361683     183623.6       3.6314109e-06  1.4997097e-06  0.41298264     0.58701736   
+    265000   0.053                500   1.0275493      207711.14      3.6314109e-06  1.5827656e-06  0.43585417     0.56414583   
+    270000   0.054                500   1.0029182      194515.73      3.6314109e-06  1.6688328e-06  0.45955493     0.54044507   
+    275000   0.055                500   1.1412782      224115.88      3.6314109e-06  1.7579648e-06  0.48409967     0.51590033   
+    280000   0.056                500   1.0631287      204495.06      3.6314109e-06  1.8502153e-06  0.50950316     0.49049684   
+    285000   0.057                500   1.1910183      235986.23      3.6314109e-06  1.945638e-06   0.53578018     0.46421982   
+    290000   0.058                500   1.2350826      256540.45      3.6314109e-06  2.0442863e-06  0.56294548     0.43705452   
+    295000   0.059                500   1.4024147      273848.36      3.6314109e-06  2.146214e-06   0.59101383     0.40898617   
+    300000   0.06                 500   1.4711951      295483.52      3.6314109e-06  2.2514747e-06  0.62           0.38         
+Loop time of 3.30325 on 8 procs for 300000 steps with 500 atoms
+
+99.9% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.043963   | 0.047945   | 0.055024   |   1.7 |  1.45
+Neigh   | 0.29447    | 0.29632    | 0.29801    |   0.2 |  8.97
+Comm    | 0.74783    | 0.7694     | 0.78807    |   1.6 | 23.29
+Output  | 0.0024955  | 0.0028076  | 0.0031714  |   0.4 |  0.08
+Modify  | 1.7969     | 1.8459     | 1.9009     |   2.2 | 55.88
+Other   |            | 0.3409     |            |       | 10.32
+
+Nlocal:           62.5 ave          74 max          53 min
+Histogram: 2 0 1 1 0 1 1 1 0 1
+Nghost:           15.5 ave          22 max           9 min
+Histogram: 1 1 0 1 0 1 3 0 0 1
+Neighs:              2 ave           3 max           1 min
+Histogram: 1 0 0 0 0 6 0 0 0 1
+
+Total # of neighbors = 16
+Ave neighs/atom = 0.032
+Neighbor list builds = 15398
+Dangerous builds = 0
+
+unfix grow1
+unfix grow2
+unfix grow3
+
+# Final particle masses are now restored, so stronger damping is stable and
+# accelerates the final mechanical relaxation.
+unfix damping
+fix dampingFinal all viscous 0.10
+
+# Remove any accumulated center-of-mass drift and relax at final size.
+velocity all zero linear
+velocity all zero angular
+reset_timestep 0
+
+variable nRelax          index 200000
+run ${nRelax}
+run 200000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 13.68 | 13.68 | 13.68 Mbytes
+   Step          Time         Atoms        KinEng         Press          Volume     c_solidVolume   v_packingNow  v_porosityNow 
+         0   0                    500   1.4709874      1713355.7      3.6314109e-06  2.2514747e-06  0.62           0.38         
+      5000   0.001                500   3.3178333e-05  159369.36      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     10000   0.002                500   3.8262661e-07  156657.36      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     15000   0.003                500   2.240719e-06   154874.11      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     20000   0.004                500   5.5544569e-07  151348.55      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     25000   0.005                500   6.4108244e-09  151146.41      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     30000   0.006                500   4.3218451e-09  151141.78      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     35000   0.007                500   3.6347798e-09  151140.69      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     40000   0.008                500   3.0632199e-09  151140.14      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     45000   0.009                500   2.5814291e-09  151139.8       3.6314109e-06  2.2514747e-06  0.62           0.38         
+     50000   0.01                 500   2.174811e-09   151139.56      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     55000   0.011                500   1.8316303e-09  151139.38      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     60000   0.012                500   1.5422764e-09  151139.25      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     65000   0.013                500   1.2981078e-09  151139.14      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     70000   0.014                500   1.0922821e-09  151139.05      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     75000   0.015                500   9.1886363e-10  151138.97      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     80000   0.016                500   7.7282621e-10  151138.91      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     85000   0.017                500   6.4989155e-10  151138.86      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     90000   0.018                500   5.4643578e-10  151138.81      3.6314109e-06  2.2514747e-06  0.62           0.38         
+     95000   0.019                500   4.5939733e-10  151138.77      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    100000   0.02                 500   3.8618879e-10  151138.74      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    105000   0.021                500   3.246225e-10   151138.71      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    110000   0.022                500   2.7285492e-10  151138.68      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    115000   0.023                500   2.2933236e-10  151138.66      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    120000   0.024                500   1.9274523e-10  151138.65      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    125000   0.025                500   1.6199057e-10  151138.63      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    130000   0.026                500   1.3613981e-10  151138.62      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    135000   0.027                500   1.1441271e-10  151138.61      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    140000   0.028                500   9.6155784e-11  151138.61      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    145000   0.029                500   8.0809436e-11  151138.59      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    150000   0.03                 500   6.7910244e-11  151138.58      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    155000   0.031                500   5.7070179e-11  151138.57      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    160000   0.032                500   4.7960288e-11  151138.56      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    165000   0.033                500   4.0304493e-11  151138.55      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    170000   0.034                500   3.3870782e-11  151138.54      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    175000   0.035                500   2.8464004e-11  151138.53      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    180000   0.036                500   2.3920313e-11  151138.53      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    185000   0.037                500   2.0101927e-11  151138.52      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    190000   0.038                500   1.6893078e-11  151138.52      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    195000   0.039                500   1.4196466e-11  151138.51      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    200000   0.04                 500   1.193032e-11   151138.51      3.6314109e-06  2.2514747e-06  0.62           0.38         
+Loop time of 3.68493 on 8 procs for 200000 steps with 500 atoms
+
+95.5% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.5736     | 1.7964     | 1.9253     |   8.5 | 48.75
+Neigh   | 0.0014542  | 0.0016208  | 0.0017981  |   0.3 |  0.04
+Comm    | 1.3616     | 1.3756     | 1.384      |   0.7 | 37.33
+Output  | 0.0015854  | 0.0018022  | 0.0021941  |   0.4 |  0.05
+Modify  | 0.1898     | 0.20939    | 0.24308    |   3.4 |  5.68
+Other   |            | 0.3002     |            |       |  8.15
+
+Nlocal:           62.5 ave          67 max          56 min
+Histogram: 2 0 0 0 0 0 1 3 1 1
+Nghost:        180.875 ave         185 max         176 min
+Histogram: 2 0 0 0 2 0 0 2 1 1
+Neighs:        307.875 ave         328 max         272 min
+Histogram: 1 0 0 1 0 0 2 2 1 1
+
+Total # of neighbors = 2463
+Ave neighs/atom = 4.926
+Neighbor list builds = 58
+Dangerous builds = 0
+
+# ------------------------------------------------------------
+# 5) Final diagnostics and graph-ready output
+# ------------------------------------------------------------
+undump growth
+
+# Particle table: the graph nodes.
+write_dump all custom ${outdir}/particles_final.dump      id type x y z radius mass fx fy fz modify sort id
+write_dump all custom packing_seed_99223/particles_final.dump      id type x y z radius mass fx fy fz modify sort id
+
+# Interacting pairs: the graph edges.  Values returned by computes are
+# stored as floating point, including atom IDs and types; %.0f is therefore
+# required for those four integer-valued compute columns.  cutoff radius
+# ensures the ID and
+# pair/local computes use the same sphere-contact criterion.
+compute pairIDs   all property/local patom1 patom2 ptype1 ptype2 cutoff radius
+compute pairState all pair/local dist dx dy dz force fx fy fz p1 p2 p3 p4 cutoff radius
+
+dump contacts all local 1 ${outdir}/contacts_final.dump      index c_pairIDs[1] c_pairIDs[2] c_pairIDs[3] c_pairIDs[4]      c_pairState[1] c_pairState[2] c_pairState[3] c_pairState[4]      c_pairState[5] c_pairState[6] c_pairState[7] c_pairState[8]      c_pairState[9] c_pairState[10] c_pairState[11] c_pairState[12]
+dump contacts all local 1 packing_seed_99223/contacts_final.dump      index c_pairIDs[1] c_pairIDs[2] c_pairIDs[3] c_pairIDs[4]      c_pairState[1] c_pairState[2] c_pairState[3] c_pairState[4]      c_pairState[5] c_pairState[6] c_pairState[7] c_pairState[8]      c_pairState[9] c_pairState[10] c_pairState[11] c_pairState[12]
+dump_modify contacts format line      "%d %.0f %.0f %.0f %.0f %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e"
+dump_modify contacts first yes
+
+# One step initializes and writes the local contact dump.
+run 1
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 0.00275
+  ghost atom cutoff = 0.00275
+  binsize = 0.001375, bins = 12 12 12
+  3 neighbor lists, perpetual/occasional/extra = 1 2 0
+  (1) pair granular, perpetual
+      attributes: half, newton off, size, history
+      pair build: half/size/bin/atomonly/newtoff
+      stencil: full/bin/3d
+      bin: standard
+  (2) compute property/local, occasional
+      attributes: half, newton off, size
+      pair build: half/size/bin/atomonly/newtoff
+      stencil: full/bin/3d
+      bin: standard
+  (3) compute pair/local, occasional
+      attributes: half, newton off, size
+      pair build: half/size/bin/atomonly/newtoff
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 13.27 | 13.27 | 13.27 Mbytes
+   Step          Time         Atoms        KinEng         Press          Volume     c_solidVolume   v_packingNow  v_porosityNow 
+    200000   0.04                 500   1.193032e-11   151138.51      3.6314109e-06  2.2514747e-06  0.62           0.38         
+    200001   0.0400002            500   1.1929905e-11  151138.51      3.6314109e-06  2.2514747e-06  0.62           0.38         
+Loop time of 0.000442882 on 8 procs for 1 steps with 500 atoms
+
+99.5% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.0199e-05 | 1.1667e-05 | 1.2378e-05 |   0.0 |  2.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 7.934e-06  | 8.2934e-06 | 8.506e-06  |   0.0 |  1.87
+Output  | 0.00033371 | 0.00037852 | 0.00041951 |   0.0 | 85.47
+Modify  | 1.197e-06  | 1.4576e-06 | 1.74e-06   |   0.0 |  0.33
+Other   |            | 4.295e-05  |            |       |  9.70
+
+Nlocal:           62.5 ave          67 max          56 min
+Histogram: 2 0 0 0 0 0 1 3 1 1
+Nghost:        180.875 ave         185 max         176 min
+Histogram: 2 0 0 0 2 0 0 2 1 1
+Neighs:        307.875 ave         328 max         272 min
+Histogram: 1 0 0 1 0 0 2 2 1 1
+
+Total # of neighbors = 2463
+Ave neighs/atom = 4.926
+Neighbor list builds = 0
+Dangerous builds = 0
+undump contacts
+
+write_data    ${outdir}/packing_final.data
+write_data    packing_seed_99223/packing_final.data
+System init for write_data ...
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+write_restart ${outdir}/packing_final.restart
+write_restart packing_seed_99223/packing_final.restart
+System init for write_restart ...
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+
+variable finalAtoms    equal atoms
+variable finalN1       equal count(bin1)
+variable finalN2       equal count(bin2)
+variable finalN3       equal count(bin3)
+variable finalSolidVol equal c_solidVolume
+variable finalPacking  equal v_packingNow
+variable finalPorosity equal v_porosityNow
+variable finalPressure equal press
+variable finalKE       equal ke
+
+print "seed N1 N2 N3 d1_m d2_m d3_m Vsolid_m3 cellVolume_m3 packingFraction porosity pressure_Pa kineticEnergy_J" file ${outdir}/packing_summary.dat
+print "seed N1 N2 N3 d1_m d2_m d3_m Vsolid_m3 cellVolume_m3 packingFraction porosity pressure_Pa kineticEnergy_J" file packing_seed_99223/packing_summary.dat
+seed N1 N2 N3 d1_m d2_m d3_m Vsolid_m3 cellVolume_m3 packingFraction porosity pressure_Pa kineticEnergy_J
+print "${seed_realization} ${finalN1} ${finalN2} ${finalN3} ${d1} ${d2} ${d3} ${finalSolidVol} $(vol) ${finalPacking} ${finalPorosity} ${finalPressure} ${finalKE}" append ${outdir}/packing_summary.dat
+print "${seed_realization} ${finalN1} ${finalN2} ${finalN3} ${d1} ${d2} ${d3} ${finalSolidVol} $(vol) ${finalPacking} ${finalPorosity} ${finalPressure} ${finalKE}" append packing_seed_99223/packing_summary.dat
+99223 100 300 100 0.0015 0.002 0.0025 2.25147473507268e-06 3.6314108630204903534e-06 0.619999999999994 0.380000000000006 151138.508089357 1.1929905034922e-11
+
+print "Packing generation completed: ${outdir}"
+Packing generation completed: packing_seed_99223
+print "For another equal-PSD/equal-porosity realization, change only seed_realization."
+For another equal-PSD/equal-porosity realization, change only seed_realization.
+Total wall time: 0:00:06
