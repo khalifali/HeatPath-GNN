@@ -116,7 +116,7 @@ processes from writing the same campaign simultaneously.
 | DEM normal/tangential model | Hertz material / Mindlin rescale; Tsuji damping |
 | Young's modulus | 50 MPa, explicitly a softened packing parameter |
 | Poisson ratio / restitution / friction | 0.25 / 0.30 / 0.50 |
-| Growth / final relaxation | 300000 / 200000 steps; dt = 2e-7 s |
+| Growth / final relaxation | 300000 growth; at least 200000 relaxation, then 50000-step extensions up to 2000000; dt = 2e-7 s |
 | Final translational KE acceptance | <= 1e-12 J; change only with a documented reason |
 | Thermal model | G_ij = 4 a k_i k_j/(k_i+k_j); infinite-wall G = 4 a k_i |
 | Thermal boundaries | 301 / 300 K |
@@ -217,3 +217,38 @@ bash code_work/Allrun30 --lammps lmp --mpi-ranks 8 --output "$(pwd)/runs/campaig
 
 Do not reuse completed packings from the earlier growth implementation in this
 corrected ensemble, even if their final kinetic-energy checks passed.
+
+## Continue a growth-fix campaign after insufficient relaxation
+
+The generator retains the original 200000-step relaxation. If translational KE
+is still above 1e-12 J, it continues in 50000-step blocks up to 2000000 total
+relaxation steps. Final files are written only after this procedure; the Python
+validator still enforces the chosen acceptance threshold. A case above the
+threshold at the limit stops the campaign with its diagnostics retained.
+The extension target is 1e-12 J; a stricter custom `--max-ke` may still reject it.
+
+For an existing campaign generated with commit 35d0024 (the growth cutoff fix):
+
+```bash
+git pull --ff-only
+source .venv/bin/activate
+bash code_work/Allrun30 --lammps lmp --mpi-ranks 8 \
+  --output "$PWD/runs/campaign30_growthfix" --upgrade-relaxation
+```
+
+The explicit upgrade verifies the exact predecessor source hashes, all other
+source hashes, settings, software environment, and completed output hashes.
+It archives the original manifest and sources under
+`provenance_before_relaxation_extension/`, records retained checkpoint names,
+and installs the new manifest. Completed stages remain unchanged and are skipped.
+The failed seed reruns from growth (not from its binary restart), then receives
+as much additional relaxation as needed. Future seeds use the same procedure.
+Previously accepted cases already met the unchanged threshold at the unchanged
+minimum relaxation, so they do not need regeneration for this extension.
+The old pre-cutoff-fix campaign is deliberately not eligible for this upgrade.
+
+Subsequent resumptions can use the same command; the flag is harmless when the
+manifest already matches. A new campaign needs no upgrade flag.
+The Python migration tests cover preservation and rejection of changed outputs,
+sources, and environment. The extension loop still needs runtime verification
+with the server LAMMPS executable.

@@ -54,6 +54,47 @@ def write_json(path, value):
     temporary.replace(path)
 
 
+# Only this audited predecessor may retain its completed stages on upgrade.
+RELAX_PREDECESSOR = {'run_campaign30.py': 'c0daf8cdee31a41f394c7bdf4ffbbcfa12ef3dda0349ada5aa04bf5cb3021f14', 'in.generate_equal_porosity_psd.lammps': '1ece1f27d1bc5d1e97283ecd3169c0b7a47db3e0996c65f5876f889b45395423'}
+
+
+def upgrade_relaxation(root, previous, current):
+    expected = json.loads(json.dumps(current))
+    expected["source_sha256"].update(RELAX_PREDECESSOR)
+    expected["settings"].pop("relaxation_extension", None)
+    if previous != expected:
+        raise RuntimeError("This campaign is not the supported growth-fix predecessor, "
+                           "or its settings/environment changed; cannot upgrade in place")
+    # Verify all completed products before accepting the migration.
+    for marker in sorted((root/"checkpoints").glob("*.json")):
+        saved = json.loads(marker.read_text())
+        for path, sha in saved["outputs"].items():
+            if not (root/path).is_file() or digest(root/path) != sha:
+                raise RuntimeError(f"Cannot upgrade: changed/missing completed output {path}")
+    archive = root/"provenance_before_relaxation_extension"
+    archive.mkdir(exist_ok=True)
+    archived_manifest = archive/"campaign_manifest.json"
+    if archived_manifest.exists() and json.loads(archived_manifest.read_text()) != previous:
+        raise RuntimeError("Conflicting archived campaign manifest")
+    for name, sha in previous["source_sha256"].items():
+        original = root/"source_snapshot"/name
+        target = archive/name
+        if target.exists():
+            if digest(target) != sha:
+                raise RuntimeError(f"Conflicting archived source {name}")
+        else:
+            if not original.is_file() or digest(original) != sha:
+                raise RuntimeError(f"Cannot upgrade: original source snapshot changed: {name}")
+            shutil.copy2(original, target)
+    write_json(archived_manifest, previous)
+    write_json(archive/"upgrade.json", {
+        "reason": "Extend unconverged packings after the unchanged 200000-step minimum",
+        "retained_checkpoints": [p.name for p in sorted((root/"checkpoints").glob("*.json"))],
+        "new_signature": current})
+    write_json(root/"campaign_manifest.json", current)
+    print("[upgrade] Preserved verified completed stages and archived original provenance", flush=True)
+
+
 def validate_packing(case, max_ke):
     particles, box = thermal.read_particles(case / "particles_final.dump")
     contacts = thermal.read_contact_ids(case / "contacts_final.dump")
@@ -167,6 +208,8 @@ def main():
     parser.add_argument("--check",action="store_true",help="Check dependencies and analytical tests, then exit")
     parser.add_argument("--dry-run",action="store_true",help="Show plan without launching or writing")
     parser.add_argument("--smoke-test",action="store_true",help="3 full DEM packings, tiny search/ML budgets; NOT publication results")
+    parser.add_argument("--upgrade-relaxation", action="store_true",
+                        help="Migrate the verified growth-fix campaign; preserve completed stages")
     args = parser.parse_args()
     if args.mpi_ranks < 1 or args.max_ke <= 0:
         parser.error("MPI ranks and KE threshold must be positive")
@@ -181,6 +224,7 @@ def main():
                 "thermal_model":"circular_constriction_4a_v2",
                 "E_Pa":5e7,"poisson":0.25,"restitution":0.30,"friction":0.50,
                 "k_low":1.0,"k_high":10.0,"type_quotas":{"1":10,"2":30,"3":10},
+                "relaxation_extension":{"block_steps":50000,"max_total_steps":2000000,"target_ke_J":1e-12},
                 "growth_steps":300000,"relaxation_steps":200000,"dt_s":2e-7}
     root = args.output.expanduser().resolve()
     if args.smoke_test and root == (CODE.parent/"runs"/"campaign30").resolve():
@@ -211,8 +255,13 @@ def main():
                      "lammps_help_sha256":hashlib.sha256(lammps_help.encode()).hexdigest()}
         manifest = root/"campaign_manifest.json"
         if manifest.exists():
-            if json.loads(manifest.read_text()) != signature:
-                raise RuntimeError("Code, settings or environment changed. Use a NEW output directory to avoid mixed results.")
+            previous = json.loads(manifest.read_text())
+            if previous != signature:
+                if args.upgrade_relaxation:
+                    upgrade_relaxation(root, previous, signature)
+                else:
+                    raise RuntimeError("Code, settings or environment changed. For the growth-fix "
+                                       "campaign, pass --upgrade-relaxation; otherwise use a new output directory.")
         else:
             write_json(manifest,signature)
         source = root/"source_snapshot"

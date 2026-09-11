@@ -198,6 +198,21 @@ reset_timestep 0
 variable nRelax          index 200000
 run ${nRelax}
 
+# Keep the original minimum relaxation, then extend only unconverged cases.
+# KE is in thermo output, so it is current at every run boundary.
+variable relaxKE equal ke
+variable relaxStep equal step
+label relax_check
+if "${relaxKE} <= 1.0e-12" then "jump SELF relax_done"
+if "${relaxStep} >= 2000000" then "jump SELF relax_limit"
+print "Extending relaxation by 50000 steps; KE=${relaxKE} J"
+run 50000
+jump SELF relax_check
+label relax_limit
+print "Relaxation limit reached; final outputs retained for diagnosis"
+label relax_done
+print "Final relaxation steps=${relaxStep}; KE=${relaxKE} J"
+
 # ------------------------------------------------------------
 # 5) Final diagnostics and graph-ready output
 # ------------------------------------------------------------
