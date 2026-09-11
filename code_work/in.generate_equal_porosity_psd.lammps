@@ -125,7 +125,9 @@ variable poisson         equal 0.25
 variable restitution     equal 0.30
 variable friction        equal 0.50
 
-pair_style granular
+# Cover the largest FINAL diameter throughout growth; automatic cutoffs
+# are initialized from the tiny starting spheres and can miss later contacts.
+pair_style granular ${d3}
 pair_coeff * * hertz/material ${young} ${restitution} ${poisson} &
                tangential mindlin_rescale NULL 1.0 ${friction} damping tsuji
 
@@ -136,7 +138,8 @@ fix zwalls all wall/gran granular hertz/material ${young} ${restitution} ${poiss
                zplane 0.0 ${H}
 
 neighbor                2.5e-4 bin
-neigh_modify            delay 0 every 1 check yes
+# Rebuild even when centers barely move: increasing radii create new contacts.
+neigh_modify            delay 0 every 1 check no
 timestep                2.0e-7
 
 fix integrate all nve/sphere

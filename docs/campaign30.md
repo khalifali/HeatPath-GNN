@@ -194,3 +194,26 @@ Their absolute conductivities use the earlier prefactor and their DEM parameter
 provenance needs care. They should not be combined with the new campaign.
 The analytical audit described in contact_model_audit.md has now been corrected
 in the production solver and generator. The new regression tests must pass.
+
+## Growth contact-search correction
+
+The initial campaign input omitted an explicit final-size granular cutoff.
+LAMMPS initializes its automatic cutoff from the initial radii; those spheres
+start at only 5% of final diameter. The input now sets `pair_style granular ${d3}`
+(the largest final diameter, 0.0025 m) and rebuilds neighbors every step, including
+when radii grow without appreciable center motion. Contact forces still act only
+on actual overlapping spheres. See the cutoff discussion in
+https://docs.lammps.org/pair_granular.html.
+
+This fixes a contact-search defect implicated in the seed 46549 lost-atom failure.
+A full rerun on the server is still required to establish dynamic stability.
+The static Hertz check alone does not test diameter growth or MPI neighbors.
+Preserve the earlier campaign for diagnostics and start a separate output:
+
+```bash
+git pull --ff-only
+bash code_work/Allrun30 --lammps lmp --mpi-ranks 8 --output "$(pwd)/runs/campaign30_growthfix"
+```
+
+Do not reuse completed packings from the earlier growth implementation in this
+corrected ensemble, even if their final kinetic-energy checks passed.
