@@ -1,0 +1,37 @@
+name: Build Beamer deck
+on:
+  push:
+    branches:
+      - main
+      - codex/clear-story-classification
+    paths:
+      - 'beamer/**'
+      - '.github/workflows/beamer-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: beamer
+        shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build slides and presenter notes
+        run: ./build.sh
+      - name: Check page synchronization
+        run: |
+          slides=$(pdfinfo heatpath_gnn.pdf | awk '/^Pages:/ {print $2}')
+          notes=$(pdfinfo heatpath_gnn_notes.pdf | awk '/^Pages:/ {print $2}')
+          test "$slides" = "$notes"
+          echo "slides=$slides notes=$notes"
+      - name: Upload deck PDFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: heatpath-gnn-deck
+          path: |
+            beamer/heatpath_gnn.pdf
+            beamer/heatpath_gnn_notes.pdf
