@@ -230,12 +230,12 @@ Sum the absolute heat rates at particle--particle contacts [W]. A larger score i
 \small
 \centering
 \begin{tikzpicture}[flow/.style={draw=tumblue!65,fill=tumlight,rounded corners=2pt,
-text width=2.25cm,minimum height=1.45cm,align=center,font=\scriptsize,inner sep=4pt}]
+text width=2.10cm,minimum height=1.45cm,align=center,font=\scriptsize,inner sep=4pt}]
 \node[flow] (a) at (0,0) {Particle features\\$\mathbf{x}_i$\\Contact features $\mathbf{e}_{ij}$};
-\node[flow] (b) at (2.9,0) {Three graph\\message-passing layers\\Neighbours exchange information};
-\node[flow] (c) at (5.8,0) {Learned latent\\particle representation\\$\mathbf{h}_i$};
-\node[flow] (d) at (8.7,0) {Classification head\\logit $z_i$\\$p_i=\mathrm{sigmoid}(z_i)$};
-\node[flow] (e) at (11.6,0) {One selection score\\for particle $i$};
+\node[flow] (b) at (2.75,0) {Three graph\\message-passing layers\\Neighbours exchange information};
+\node[flow] (c) at (5.50,0) {Learned latent\\particle representation\\$\mathbf{h}_i$};
+\node[flow] (d) at (8.25,0) {Classification head\\logit $z_i$\\$p_i=\mathrm{sigmoid}(z_i)$};
+\node[flow] (e) at (11.00,0) {One selection score\\for particle $i$};
 \draw[arr](a)--(b);\draw[arr](b)--(c);\draw[arr](c)--(d);\draw[arr](d)--(e);
 \end{tikzpicture}
 \vspace{.45cm}
@@ -299,12 +299,12 @@ The ranking term favours particles with larger $y_i$ within the same size class.
 \small
 \centering
 \begin{tikzpicture}[flow/.style={draw=tumblue!65,fill=tumlight,rounded corners=2pt,
-text width=2.25cm,minimum height=1.5cm,align=center,font=\scriptsize,inner sep=4pt}]
+text width=2.10cm,minimum height=1.5cm,align=center,font=\scriptsize,inner sep=4pt}]
 \node[flow] (a) at (0,0) {New DEM packing\\Fixed contact graph};
-\node[flow] (b) at (2.9,0) {All-low thermal solve\\Build particle and\\contact features};
-\node[flow] (c) at (5.8,0) {Trained GNN\\One score for\\every particle};
-\node[flow] (d) at (8.7,0) {Rank separately\\within each size class\\Select 10 / 30 / 10};
-\node[flow] (e) at (11.6,0) {Final thermal solve\\Verify $k_{\rm eff}$};
+\node[flow] (b) at (2.75,0) {All-low thermal solve\\Build particle and\\contact features};
+\node[flow] (c) at (5.50,0) {Trained GNN\\One score for\\every particle};
+\node[flow] (d) at (8.25,0) {Rank separately\\within each size class\\Select 10 / 30 / 10};
+\node[flow] (e) at (11.00,0) {Final thermal solve\\Verify $k_{\rm eff}$};
 \draw[arr](a)--(b);\draw[arr](b)--(c);\draw[arr](c)--(d);\draw[arr](d)--(e);
 \end{tikzpicture}
 \vspace{.45cm}
