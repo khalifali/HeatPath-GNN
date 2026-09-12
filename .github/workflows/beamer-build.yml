@@ -2,6 +2,7 @@ name: Build Beamer deck
 on:
   push:
     branches:
+      - main
       - codex/clear-story-classification
     paths:
       - 'beamer/**'
