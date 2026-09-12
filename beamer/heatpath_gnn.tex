@@ -58,6 +58,20 @@
 }{\end{columns}\end{overlayarea}}
 \newcommand{\Col}[2]{\column{#1\textwidth}\begin{minipage}[t][\FlexRowHeight]{\linewidth}#2\end{minipage}}
 
+
+\newcommand{\sectiondivider}[4]{%
+\section[#3]{#3}
+\begin{frame}{}
+\centering
+\vfill
+{\color{tumgray}\large Section #1 of #2\par}
+\vspace{.35cm}
+{\color{tumblue}\LARGE\bfseries #3\par}
+\vspace{.35cm}
+{\large\color{tumdark}#4\par}
+\vfill
+\end{frame}}
+
 \setbeamertemplate{frametitle}{\vspace{0.05cm}\parbox{0.88\textwidth}{\large\color{tumblue}\insertframetitle}}
 \begin{document}
 \begin{frame}{}
@@ -66,6 +80,15 @@
 
 
 \end{frame}
+\begin{frame}{Outline}
+\small
+\tableofcontents[hideallsubsections]
+\vspace{.35cm}
+\result{The story moves from the physical allocation problem to fast prediction on an unseen packing.}
+\end{frame}
+
+\sectiondivider{1}{5}{Motivation and research question}{A fixed material budget turns heat transfer into an allocation problem}
+
 \begin{frame}{Motivation: conductive material is a limited resource}
 \small
 \begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Heat transfer through particle beds}\begin{itemize}\item Heating and cooling granular products\item Thermal storage and temperature control\item Transport depends on contacts between particles\end{itemize}\column{.48\textwidth}\hi{A design choice}\begin{itemize}\item Highly conductive material may be costly\item The material budget is fixed\item Its position within the bed can change the conducting network\end{itemize}\end{columns}\vspace{.5cm}\result{Can we obtain better heat transfer from the same amount of conductive material?}
@@ -87,6 +110,8 @@
 
 
 \end{frame}
+\sectiondivider{2}{5}{Packing and thermal model}{Particle contacts define the available heat-transfer routes}
+
 \begin{frame}{Thirty packings with the same nominal porosity}
 \small
 \begin{columns}[T,onlytextwidth]\column{.48\textwidth}\begin{tabular}{lr}\toprule Quantity & Value\\\midrule Particles & 500\\Diameters [mm] & 1.5 / 2.0 / 2.5\\Counts & 100 / 300 / 100\\Nominal porosity & 0.38\\Independent seeds & 30\\\bottomrule\end{tabular}\column{.48\textwidth}\begin{itemize}\item Periodic boundaries in $x$ and $y$\item Two fixed thermal walls in $z$\item No gravity during generation\item Grow small spheres, then relax\item Accept final translational KE $\leq10^{-12}$ J\end{itemize}\end{columns}\vspace{.4cm}\small DEM: Hertz--Mindlin, $E=50$ MPa, $\nu=0.25$, restitution $0.30$, friction $0.50$.
@@ -120,6 +145,8 @@ $Q$: wall heat rate, $H$: height, $A$: wall area.\end{columns}\vspace{.3cm}\resu
 
 
 \end{frame}
+\sectiondivider{3}{5}{Allocation methods and teacher search}{Simple rankings initialize and benchmark the searched allocations}
+
 \begin{frame}{Every method uses the same conductive-material budget}
 \small
 \centering\begin{tabular}{lrrr}\toprule Diameter [mm]&1.5&2.0&2.5\\\midrule Total particles&100&300&100\\High-conductivity particles&10&30&10\\\bottomrule\end{tabular}\vspace{.4cm}
@@ -148,25 +175,28 @@ Degree ranking & Count each particle's contacting neighbours. Select the 10 / 30
 \small Each run proposes 3000 swaps. Retain the best final allocation found.
 
 \end{frame}
-\begin{frame}{Where the methods enter training, prediction and evaluation}
-\small\centering
-\begin{tikzpicture}[flow/.style={draw=tumblue!65,fill=tumlight,rounded corners=2pt,text width=2.8cm,minimum height=1.45cm,align=center,font=\scriptsize,inner sep=4pt}]
-\node[anchor=west,tumblue,font=\small\bfseries] at (-1.45,1.12) {Training: compute features and generate search targets};
-\node[flow] (a) at (0,0) {Packing\\Compute degree\\All-low thermal solve};
-\node[flow] (b) at (3.3,0) {Degree ranking\\Heat-throughput ranking\\Choose better start};
-\node[flow] (c) at (6.6,0) {Swap search\\5 runs, 3000 swaps\\Selection targets};
-\node[flow] (d) at (9.9,0) {Fit GNN and MLP\\Inputs: features\\Targets: search selections};
+\begin{frame}{Teacher allocations for model training}
+\small
+\centering
+\begin{tikzpicture}[flow/.style={draw=tumblue!65,fill=tumlight,rounded corners=2pt,
+text width=2.55cm,minimum height=1.5cm,align=center,font=\scriptsize,inner sep=4pt}]
+\node[flow] (a) at (0,0) {Training packing\\Degree and all-low\\thermal features};
+\node[flow] (b) at (3.25,0) {Degree ranking and\\heat-throughput ranking\\Better allocation starts search};
+\node[flow] (c) at (6.5,0) {Five swap-search runs\\Same-size swaps\\3000 proposals each};
+\node[flow] (d) at (9.75,0) {Soft class labels\\Selection frequency\\$y_i\in\{0,.2,\ldots,1\}$};
 \draw[arr](a)--(b);\draw[arr](b)--(c);\draw[arr](c)--(d);
-\draw[arr,dashed] (a.south)--++(0,-.4)-|node[pos=.25,below,font=\scriptsize,fill=white] {Particle features, including degree and heat throughput} (d.south);
-\node[anchor=west,tumblue,font=\small\bfseries] at (-1.45,-1.65) {Prediction on a new packing: features remain necessary};
-\node[flow] (e) at (0,-2.8) {New packing\\Compute degree\\All-low thermal solve};
-\node[flow] (f) at (3.3,-2.8) {Trained GNN\\Particle features\\Contact features};
-\node[flow] (g) at (6.6,-2.8) {Rank GNN scores\\Select 10/30/10\\high-$k$ particles};
-\node[flow] (h) at (9.9,-2.8) {Thermal verification\\Selected allocation\\Obtain $k_{\rm eff}$};
-\draw[arr](e)--(f);\draw[arr](f)--(g);\draw[arr](g)--(h);
-\end{tikzpicture}\par\vspace{.2cm}
-\hi{Study evaluation:} compare GNN with random allocation, degree ranking, heat-throughput ranking, MLP and swap search on the same held-out packing.
-
+\end{tikzpicture}
+\vspace{.45cm}
+\begin{columns}[T,onlytextwidth]
+\column{.48\textwidth}
+\hi{Search output}\\
+Each particle receives a target equal to the fraction of final search runs that selected it.
+\column{.48\textwidth}
+\hi{Scientific references}\\
+Random, degree and heat-throughput allocations remain independent benchmarks for the learned models.
+\end{columns}
+\vspace{.3cm}
+\result{The searched allocations provide training labels. They are not required when the trained GNN is applied.}
 \end{frame}
 \begin{frame}{Degree and heat throughput have three distinct roles}
 \small
@@ -189,31 +219,105 @@ Sum the absolute heat rates at particle--particle contacts [W]. A larger score i
 \end{columns}\vspace{.25cm}\result{These inputs are available before we choose any high-conductivity particles.}
 
 \end{frame}
+\sectiondivider{4}{5}{Graph learning and prediction}{The GNN learns a node-level classification score for material allocation}
+
 \begin{frame}{The GNN uses geometry and the all-low thermal solution}
 \small
 \begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{Eight particle features}\begin{itemize}\item Diameter, height and contact degree\item Hot-wall, cold-wall and anchored flags\item Normalized all-low temperature\item Normalized all-low heat-throughput score\end{itemize}\column{.48\textwidth}\hi{Six contact features}\begin{itemize}\item Contact radius\item Relative displacement in $x,y,z$\item Absolute vertical alignment\item Normalized absolute all-low contact heat rate\end{itemize}\end{columns}\vspace{.3cm}\small Three message-passing layers, width 64. MLP uses the same particle features. GNN additionally uses neighbour messages and contact features.
 
 \end{frame}
-\begin{frame}{Training targets describe how often search selects each particle}
+\begin{frame}{The GNN performs particle classification}
 \small
-\begin{columns}[T,onlytextwidth]\column{.48\textwidth}\hi{A soft selection target}
-\[y_i=\frac{\text{search runs selecting particle }i}{5}\]
-Example: selection in four of five runs gives $y_i=0.8$.\par\vspace{.3cm}
-The network predicts a score $z_i$ and $p_i=\mathrm{sigmoid}(z_i)$.\column{.48\textwidth}\hi{Two parts of the training loss}
-\[L=L_{\rm ranking}+0.2L_{\rm BCE}\]
-Ranking: favour particles frequently selected by search, within each size class.\par\vspace{.2cm}
-Binary cross entropy (BCE): penalize disagreement between $p_i$ and $y_i$.\end{columns}\vspace{.3cm}\result{The model learns particle priorities. Exact quotas are enforced after scoring.}
-
+\centering
+\begin{tikzpicture}[flow/.style={draw=tumblue!65,fill=tumlight,rounded corners=2pt,
+text width=2.25cm,minimum height=1.45cm,align=center,font=\scriptsize,inner sep=4pt}]
+\node[flow] (a) at (0,0) {Particle features\\$\mathbf{x}_i$\\Contact features $\mathbf{e}_{ij}$};
+\node[flow] (b) at (2.9,0) {Three graph\\message-passing layers\\Neighbours exchange information};
+\node[flow] (c) at (5.8,0) {Learned latent\\particle representation\\$\mathbf{h}_i$};
+\node[flow] (d) at (8.7,0) {Classification head\\logit $z_i$\\$p_i=\mathrm{sigmoid}(z_i)$};
+\node[flow] (e) at (11.6,0) {One selection score\\for particle $i$};
+\draw[arr](a)--(b);\draw[arr](b)--(c);\draw[arr](c)--(d);\draw[arr](d)--(e);
+\end{tikzpicture}
+\vspace{.45cm}
+\begin{columns}[T,onlytextwidth]
+\column{.48\textwidth}
+\hi{Training question}\\
+How closely does this particle resemble particles retained by the teacher search?
+\column{.48\textwidth}
+\hi{Model output}\\
+A continuous priority score for every particle, not the bed conductivity.
+\end{columns}
+\vspace{.3cm}
+\result{This is node-level soft classification followed by constrained ranking.}
 \end{frame}
-\begin{frame}{Scoring assigns priorities, then ranking enforces the budget}
+\begin{frame}{Soft classification targets come from the search}
 \small
-\begin{enumerate}
-\item Run the trained model to obtain one numerical score per particle.\par A higher score means higher priority for high conductivity.
-\item Convert scores to ranks within each size class, for each of three trained repeats.
-\item Average those ranks and select the top 10 / 30 / 10 particles.
-\item Assign $k_{\rm high}=10$ to those particles and solve the thermal network to verify $k_{\rm eff}$.
-\end{enumerate}\vspace{.3cm}\result{Fifty selected particles, regardless of how many predicted probabilities exceed 0.5.}
-
+\begin{columns}[T,onlytextwidth]
+\column{.47\textwidth}
+\hi{Target for particle $i$}
+\[y_i=\frac{\text{final search runs selecting }i}{5}\]
+Selection in four of five runs gives $y_i=0.8$.
+\par\vspace{.25cm}
+The target expresses search agreement, not a proven probability of global optimality.
+\column{.49\textwidth}
+\hi{Classification and ranking loss}
+\[L=L_{\rm ranking}+0.2L_{\rm BCE}\]
+BCE compares the sigmoid score $p_i$ with the soft label $y_i$.
+\par\vspace{.2cm}
+The ranking term favours particles with larger $y_i$ within the same size class.
+\end{columns}
+\vspace{.3cm}
+\result{The network learns relative particle priorities. It does not regress $k_{\rm eff}$.}
+\end{frame}
+\begin{frame}{Ranking within size classes enforces the budget}
+\small
+\begin{columns}[T,onlytextwidth]
+\column{.48\textwidth}
+\hi{The GNN scores all 500 particles}
+\begin{itemize}
+\item One continuous score per particle
+\item Three trained repeats give three rankings
+\item Average the ranks within each size class
+\end{itemize}
+\column{.48\textwidth}
+\hi{Selection remains stratified}
+\begin{itemize}
+\item Top 10 among the 1.5 mm particles
+\item Top 30 among the 2.0 mm particles
+\item Top 10 among the 2.5 mm particles
+\end{itemize}
+\end{columns}
+\vspace{.2cm}
+\[
+\mathcal S_b=\operatorname{Top}_{q_b}\{s_i:i\in\mathcal B_b\},
+\qquad \mathcal S=\bigcup_b\mathcal S_b
+\]
+\vspace{.15cm}
+\result{There is no global top-50 ranking across different particle sizes.}
+\end{frame}
+\begin{frame}{Applying the trained GNN to a new packing}
+\small
+\centering
+\begin{tikzpicture}[flow/.style={draw=tumblue!65,fill=tumlight,rounded corners=2pt,
+text width=2.25cm,minimum height=1.5cm,align=center,font=\scriptsize,inner sep=4pt}]
+\node[flow] (a) at (0,0) {New DEM packing\\Fixed contact graph};
+\node[flow] (b) at (2.9,0) {All-low thermal solve\\Build particle and\\contact features};
+\node[flow] (c) at (5.8,0) {Trained GNN\\One score for\\every particle};
+\node[flow] (d) at (8.7,0) {Rank separately\\within each size class\\Select 10 / 30 / 10};
+\node[flow] (e) at (11.6,0) {Final thermal solve\\Verify $k_{\rm eff}$};
+\draw[arr](a)--(b);\draw[arr](b)--(c);\draw[arr](c)--(d);\draw[arr](d)--(e);
+\end{tikzpicture}
+\vspace{.45cm}
+\begin{columns}[T,onlytextwidth]
+\column{.48\textwidth}
+\hi{Required for prediction}\\
+One reference solve, feature construction, GNN scoring and quota selection.
+\column{.48\textwidth}
+\hi{Required only for evaluation}\\
+Random, degree, heat-throughput and full swap-search comparisons.
+\end{columns}
+\vspace{.3cm}
+\result{The trained GNN replaces the repeated swap search on the unseen packing.}
 \end{frame}
 \begin{frame}{Each test packing is withheld from model fitting}
 \small
@@ -225,6 +329,8 @@ Binary cross entropy (BCE): penalize disagreement between $p_i$ and $y_i$.\end{c
 
 
 \end{frame}
+\sectiondivider{5}{5}{Results and conclusions}{Graph information improves allocation with far fewer thermal solves}
+
 \begin{frame}{Gain and recovery answer different questions}
 \small
 \[\mathrm{Gain}_m=100\frac{k_m-k_{\rm random}}{k_{\rm random}}\]
