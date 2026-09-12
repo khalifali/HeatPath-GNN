@@ -1,6 +1,6 @@
 ## 1. HeatPath--GNN
 
-This slide introduces heatpath--gnn and connects it to the fixed-budget particle-allocation workflow.
+Today I will explain a particle-allocation problem. We have a fixed packed bed and a limited amount of highly conductive material. The question is where to place that material to improve heat transfer. We first solve and optimize a physical thermal network, then train a graph neural network to propose allocations for another packing. The results cover thirty independent realizations of one packing specification.
 
 ## 2. Outline
 
