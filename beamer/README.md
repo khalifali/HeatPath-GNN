@@ -1,11 +1,11 @@
 # HeatPath-GNN presentation
 
-The 25-slide Beamer deck follows the supplied PoreAccess-CO2 template and
+The 33-slide Beamer deck follows the supplied PoreAccess-CO2 template and
 presents the completed 30-packing campaign, from motivation to conclusions.
 
 - `heatpath_gnn.tex` and `heatpath_gnn.pdf`: presentation source and slides.
-- `heatpath_gnn_notes.tex` and `heatpath_gnn_notes.pdf`: each slide beside its
-  presenter transcript, on a wide page suitable for a monitor or printing.
+- `heatpath_gnn_notes.tex` is generated from the main source by `build.sh`.
+  `heatpath_gnn_notes.pdf` places each slide beside its presenter notes.
 - `presenter_notes.md`: a convenient plain-text copy of the transcript.
   Edit the notes TeX for the compiled handout, and keep this copy consistent.
 - `figures/`: six supplied vector result plots and the supplied TUM title assets.
@@ -22,8 +22,9 @@ bash beamer/build.sh
 
 Requires `pdflatex` with Beamer, TikZ, Latin Modern, geometry and graphicx
 (usually texlive-latex-recommended, texlive-latex-extra, texlive-pictures and
-lmodern on Ubuntu). The notes source includes pages from the compiled deck,
-so compile the deck before the notes. No Python or simulation run is required.
+lmodern on Ubuntu). The build compiles the main source, copies it to `heatpath_gnn_notes.tex`,
+uncomments the Beamer notes option with `sed`, and compiles the notes version.
+Do not edit the generated notes TeX directly. No Python or simulation run is required.
 The PDF figures can also be reused independently in a paper.
 
 ## Scientific scope
@@ -42,4 +43,4 @@ Campaign procedure: ../docs/campaign30.md
 Only presentation-related files live here. Simulation and analysis programs
 remain in `code_work/`.
 
-Terminology: all-low thermal solve supplies features; degree ranking and heat-throughput ranking are allocation methods. Slide 10 shows the workflow and slide 11 separates their three roles. To regenerate the four method-labelled figures from the retained CSV data, run `python3 beamer/refresh_method_figures.py` (NumPy and Matplotlib required). This changes presentation labels only, not simulation results.
+Terminology: the all-low thermal solve supplies features; degree ranking and heat-throughput ranking are allocation methods. Section 3 now follows the experiment from wall boundary conditions through baseline solving, allocation and swap optimization. To regenerate the four method-labelled figures from the retained CSV data, run `python3 beamer/refresh_method_figures.py` (NumPy and Matplotlib required). This changes presentation labels only, not simulation results.
