@@ -38,31 +38,31 @@ The contact radius comes from the Hertz geometrical relation between overlap and
 
 ## 10. Allocation methods and teacher search
 
-This section separates simple ranking methods from the fixed-budget swap search. The search starts from the better physics-based reference and produces the labels used to train the learned models.
+This section follows the experiment in chronological order. We first impose the wall temperatures and fix the conductive-material quota. The all-low thermal solve supplies baseline temperatures and contact heat rates. We then compare allocation rules, improve the best reference with same-size swaps, and use the searched allocations as training targets.
 
-## 11. Every method uses the same conductive-material budget
+## 11. Thermal experiment and fixed material budget
 
-The optimization is discrete: a particle is assigned either low or high conductivity. The constraints are exact within each size class, not just over the total count. Because all particles within a class share their diameter, fixing those counts also fixes the conductive-material volume. We do not alter positions, radii or contact topology when comparing allocations on a packing. This isolates the value of arranging the material intelligently.
+We impose 301 K at the bottom wall and 300 K at the top wall. The lateral directions are periodic, and the present model includes steady conduction through particle contacts. The table fixes the conductive budget: ten, thirty and ten particles in the three size classes. The binary variable s_i records the material assigned to particle i. A value of one means high conductivity. The set B_b contains the particles in size class b, and the equation fixes their sum to the quota q_b. The optimization changes only these material labels and seeks the allocation with the largest whole-bed effective conductivity.
 
-## 12. Reference methods select which 50 particles become conductive
+## 12. All-low thermal solve before material allocation
+
+This is the first thermal calculation for each packing. We assign the low conductivity to every particle, impose 301 K at the bottom wall and 300 K at the top wall, and solve the steady contact network. The solution gives a baseline temperature for each particle and a baseline heat rate for each contact. The heat-throughput score sums the absolute particle-contact heat rates incident on a particle. These baseline quantities are available before any high-conductivity particles are selected.
+
+## 13. Reference methods select which 50 particles become conductive
 
 All three methods produce particle selections, not temperature predictions. We assign high conductivity to the selected fifty particles and low conductivity to the remaining four hundred and fifty, then solve the thermal problem. The degree and heat-throughput rules give one allocation each. Random sampling gives one hundred allocations, and its reported conductivity is their mean. Quotas are applied separately within each size class. Heat-throughput ranking sorts the all-low thermal heat-throughput feature. It does not run a shortest-path algorithm.
 
-## 13. Swap search starts from the better reference allocation
+## 14. Swap search starts from the better reference allocation
 
 The starting point is a complete fifty-particle selection. We compare the degree and heat-throughput selections and initialize every run with the better one; a tie favours degree. Each proposal samples a size class and then one selected and one unselected particle within it. Swapping their labels preserves the quota exactly. The code accepts an increase larger than a relative tolerance of 1e-12. All five runs have the same initial assignment but independent random proposal sequences. Their final selections supply the learning targets, and the best of their final conductivities supplies the search reference. This is not a proven global optimum.
 
-## 14. Teacher allocations for model training
+## 15. Teacher allocations for model training
 
 This diagram now shows only model construction. For every training packing, we compute degree and the all-low thermal features. Degree ranking and heat-throughput ranking produce two valid allocations, and the better one initializes five independent swap-search runs. A particle's target is the fraction of the five final selections that contain it. Random, degree and heat-throughput remain separate benchmarks, but they are not required when the trained GNN is deployed.
 
-## 15. Degree and heat throughput have three distinct roles
+## 16. Degree and heat throughput have three distinct roles
 
 Degree is a neighbour count and heat throughput is a sum of absolute contact heat rates from the all-low thermal solve. Those are numerical features, available on both training and new packings. Degree ranking and heat-throughput ranking are allocation methods that sort those features within each size class and enforce the conductive-particle quotas. We use the resulting allocations to initialize the training-data search and as independent evaluation references. Using these features in a GNN does not force the GNN to reproduce either ranking: it can combine them with other particle information and contact messages. The MLP checks how much learning from the particle features achieves without those messages and edge features. For practical GNN prediction the features remain necessary, while running the reference allocation methods is optional benchmarking.
-
-## 16. All-low thermal solve before material allocation
-
-Homogeneous refers only to the material conductivity, not to the geometry or the temperature field. We set all particles to low conductivity and solve once with the imposed wall temperatures. T superscript zero is the resulting baseline temperature. The throughput score sums the magnitudes of the heat rates on particle-particle contacts incident on a node; the implementation does not add wall heat rates to this score. It is not net heat accumulation, which is zero at steady state. In a simple interior chain it counts incoming and outgoing heat, so it would equal twice the transmitted heat rate. This score ranks the simple heat-throughput reference and also becomes a normalized input to the learned models.
 
 ## 17. Graph learning and prediction
 
