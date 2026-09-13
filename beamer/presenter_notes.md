@@ -12,7 +12,9 @@ This section defines the design problem. The packing and the amount of conductiv
 
 ## 4. Motivation: conductive material is a limited resource
 
-The motivation is to improve transport without increasing the conductive-material budget. An effective conductivity describes the whole bed, but it hides the individual contacts through which heat moves. The design variable here is the assignment of material to particles. We keep the geometry fixed while comparing assignments, so any difference between methods is attributable to allocation within this model. Practical manufacturing of a prescribed assignment remains a separate question.
+Several packed-bed applications contain a real material-budget trade-off. In catalytic reactors, conductive inert pellets such as silicon carbide can spread heat and reduce hot spots, but each inert pellet replaces active catalyst. Adsorption beds use graphite or other conductive additives to improve heat removal, but the additives reduce the amount of active sorbent. Thermal-storage beds can combine inexpensive storage material with a smaller conductive fraction, but that fraction adds cost or displaces storage capacity. These applications motivate the same design question studied here: if the conductive fraction, geometry and particle-size distribution are fixed, which particle positions should receive the conductive material? The present model isolates conduction through the solid contact network; it does not yet represent a complete reactor, adsorption unit or thermal-storage cycle.
+
+Sources: [Kulkarni et al. (2023), *Silicon carbide in catalysis*](https://doi.org/10.1080/01614940.2022.2025670); [Fayazmanesh et al. (2017), *Effective thermal conductivity modeling of consolidated sorption materials*](https://www.sfu.ca/~mbahrami/pdf/pdf/2017/Effective%20thermal%20conductivity%20modeling%20of%20consolidated%20sorption.pdf); Ma et al. (2023), *Numerical and experimental studies of packed-bed thermal energy storage*.
 
 ## 5. The allocation problem
 
